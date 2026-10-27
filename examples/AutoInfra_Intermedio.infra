@@ -1,0 +1,789 @@
+/*
+AUTOINFRA - INTERMEDIO ACUMULATIVO
+*/
+
+server servidorWeb {
+    cpu = 4;
+    memory = 8;
+    disk = 100;
+    os = "ubuntu";
+}
+server servidorReserva {
+    cpu = 2;
+    memory = 4;
+    disk = 50;
+    os = "ubuntu";
+}
+service api {
+    port = 8080;
+    replicas = 1;
+}
+
+server[] servidores = [servidorWeb, servidorReserva];
+int[] objetivos = [2, 3, 4];
+float[] tarifas = [1.5, 2.5, 3.5];
+bool[] habilitados = [true, false, true];
+string[] planPaquetes = ["docker", "temporal", "git", "nginx", "posterior"];
+int minimoMemoria = 4;
+int consultas = 0;
+int iniciados = 0;
+int visitasPreparacion = 0;
+int memoriaPreparada = 0;
+int paquetesInstalados = 0;
+int paquetesOmitidos = 0;
+int paquetesVisitados = 0;
+int rupturaEn = -1;
+int pasos = 0;
+int replicasObjetivo = 0;
+float costo = 0.0;
+string traza = "";
+string trazaPaquetes = "";
+bool despliegueCorrecto = false;
+bool escalaCorrecta = false;
+
+function memoriaMinima() int {
+    return minimoMemoria;
+}
+function permitirDespliegue() bool {
+    return true;
+}
+function calcularReplicas(int base, int extra, bool aumentar) int {
+    if (aumentar) {
+        return base + extra;
+    }
+    return base;
+}
+function estimarCosto(float tarifa, int cantidad) float {
+    return tarifa * cantidad;
+}
+function esApto(server equipo, int minimo) bool {
+    consultas = consultas + 1;
+    return equipo.memory >= minimo && equipo.os == "ubuntu";
+}
+function sumarObjetivos(int[] valores) int {
+    int suma = 0;
+    for (int i = 0; i < length(valores); i = i + 1) {
+        suma = suma + valores[i];
+    }
+    return suma;
+}
+function probarAmbitos(int minimoMemoria) int {
+    int suma = minimoMemoria;
+    if (true) {
+        int minimoMemoria = 12;
+        suma = suma + minimoMemoria;
+    }
+    return suma + minimoMemoria + memoriaMinima();
+}
+function contienePaquete(server equipo, string nombre) bool {
+    for (int i = 0; i < length(equipo.packages); i = i + 1) {
+        if (equipo.packages[i] == nombre) {
+            return true;
+        }
+    }
+    return false;
+}
+function configurar(server equipo, string[] paquetes, int maximo) int {
+    int instalados = 0;
+    for (int i = 0; i < length(paquetes); i = i + 1) {
+        paquetesVisitados = paquetesVisitados + 1;
+        trazaPaquetes = trazaPaquetes + i + ";";
+        if (paquetes[i] == "temporal") {
+            paquetesOmitidos = paquetesOmitidos + 1;
+            continue;
+        }
+        if (instalados >= maximo) {
+            rupturaEn = i;
+            break;
+        }
+        bool instalado = install(equipo, paquetes[i]);
+        if (instalado) {
+            instalados = instalados + 1;
+        }
+    }
+    return instalados;
+}
+
+task levantar {
+    int i = 0;
+    while (i < length(servidores)) {
+        visitasPreparacion = visitasPreparacion + 1;
+        if (servidores[i].status == "stopped") {
+            bool inicio = start(servidores[i]);
+            if (inicio) {
+                iniciados = iniciados + 1;
+            }
+        }
+        memoriaPreparada = memoriaPreparada + servidores[i].memory;
+        i = i + 1;
+    }
+    pasos = pasos + 1;
+    traza = traza + "levantar;";
+}
+task preparar {
+    paquetesInstalados = configurar(servidorWeb, planPaquetes, 3);
+    costo = estimarCosto(tarifas[1], paquetesInstalados);
+    pasos = pasos + 1;
+    traza = traza + "preparar;";
+}
+task desplegar {
+    if (permitirDespliegue() && esApto(servidorWeb, memoriaMinima())) {
+        despliegueCorrecto = deploy(servidorWeb, api);
+        replicasObjetivo = calcularReplicas(objetivos[0], objetivos[0], habilitados[0]);
+        if (replicasObjetivo >= 1 && api.status == "running") {
+            escalaCorrecta = scale(api, replicasObjetivo);
+        }
+    }
+    pasos = pasos + 1;
+    traza = traza + "desplegar;";
+}
+
+main {
+    float puntos = 0.0;
+    int comprobaciones = 0;
+    int aprobadas = 0;
+
+    float puntajeCriterio1 = 0.0;
+
+    float puntajeCriterio2 = 0.0;
+
+    float puntajeCriterio3 = 0.0;
+
+    float puntajeCriterio4 = 0.0;
+
+    float puntajeCriterio5 = 0.0;
+
+    float puntajeCriterio6 = 0.0;
+
+    float puntajeCriterio7 = 0.0;
+
+    float puntajeCriterio8 = 0.0;
+
+    float puntajeCriterio9 = 0.0;
+
+    float puntajeCriterio10 = 0.0;
+
+    float puntajeCriterio11 = 0.0;
+
+    float puntajeCriterio12 = 0.0;
+
+    print("AUTOINFRA - INTERMEDIO ACUMULATIVO");
+    print("Preparar servidores, seleccionar paquetes y desplegar una API mediante tareas.");
+    print("Puntaje automatico disponible: 30.");
+
+    // PLAN DE PREPARACION Y PARAMETROS
+    print("--- PLAN DE PREPARACION Y PARAMETROS ---");
+
+    // Arreglos: tipos, literales, indices y length: 0.75 puntos.
+    bool cumplePrueba1 = length(objetivos) == 3 && objetivos[0] == 2 && objetivos[2] == 4;
+    print("  objetivos[0] | esperado=2 | observado=" + (objetivos[0]));
+    print("  objetivos[2] | esperado=4 | observado=" + (objetivos[2]));
+    float ganadoPrueba1 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba1) {
+        ganadoPrueba1 = 0.75;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba1;
+        puntos = puntos + ganadoPrueba1;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglo int utilizado como plan de replicas | cumple=" + cumplePrueba1 + " | puntos=" + ganadoPrueba1 + "/0.75");
+
+    // Arreglos: tipos, literales, indices y length: 0.5 puntos.
+    bool cumplePrueba2 = length(tarifas) == 3 && tarifas[1] == 2.5;
+    print("  tarifa seleccionada | esperado=2.5 | observado=" + (tarifas[1]));
+    float ganadoPrueba2 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba2) {
+        ganadoPrueba2 = 0.5;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba2;
+        puntos = puntos + ganadoPrueba2;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglo float utilizado para el costo | cumple=" + cumplePrueba2 + " | puntos=" + ganadoPrueba2 + "/0.5");
+
+    // Arreglos: tipos, literales, indices y length: 0.5 puntos.
+    bool cumplePrueba3 = length(habilitados) == 3 && habilitados[0] && !habilitados[1] && habilitados[2];
+    print("  habilitados[1] | esperado=false | observado=" + (habilitados[1]));
+    float ganadoPrueba3 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba3) {
+        ganadoPrueba3 = 0.5;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba3;
+        puntos = puntos + ganadoPrueba3;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglo bool con decisiones habilitadas y omitidas | cumple=" + cumplePrueba3 + " | puntos=" + ganadoPrueba3 + "/0.5");
+
+    string[] etiquetas = ["principal", "reserva"];
+
+    // Arreglos: tipos, literales, indices y length: 0.75 puntos.
+    bool cumplePrueba4 = length(planPaquetes) == 5 && planPaquetes[1] == "temporal" && etiquetas[1] == "reserva";
+    print("  etiqueta reserva | esperado=reserva | observado=" + (etiquetas[1]));
+    print("  paquete omitible | esperado=temporal | observado=" + (planPaquetes[1]));
+    float ganadoPrueba4 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba4) {
+        ganadoPrueba4 = 0.75;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba4;
+        puntos = puntos + ganadoPrueba4;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglos string globales y locales del escenario | cumple=" + cumplePrueba4 + " | puntos=" + ganadoPrueba4 + "/0.75");
+
+    // Arreglos: tipos, literales, indices y length: 0.5 puntos.
+    bool cumplePrueba5 = length(servidores) == 2 && servidores[0] == servidorWeb && servidores[1].cpu == 2;
+    print("  servidores[1].cpu | esperado=2 | observado=" + (servidores[1].cpu));
+    float ganadoPrueba5 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba5) {
+        ganadoPrueba5 = 0.5;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba5;
+        puntos = puntos + ganadoPrueba5;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglo de servidores para la preparacion | cumple=" + cumplePrueba5 + " | puntos=" + ganadoPrueba5 + "/0.5");
+
+    // Arreglos: tipos, literales, indices y length: 0.5 puntos.
+    bool cumplePrueba6 = objetivos[1 + 1] == 4 && planPaquetes[length(planPaquetes) - 1] == "posterior";
+    print("  ultimo paquete | esperado=posterior | observado=" + (planPaquetes[length(planPaquetes) - 1]));
+    float ganadoPrueba6 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba6) {
+        ganadoPrueba6 = 0.5;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba6;
+        puntos = puntos + ganadoPrueba6;
+        aprobadas = aprobadas + 1;
+    }
+    print("Indices calculados sobre el plan | cumple=" + cumplePrueba6 + " | puntos=" + ganadoPrueba6 + "/0.5");
+
+    int minimoSinParametros = memoriaMinima();
+    bool permisoSinParametros = permitirDespliegue();
+
+    // Funciones sin parametros: 0.5 puntos.
+    bool cumplePrueba7 = minimoSinParametros == 4;
+    print("  minimoSinParametros | esperado=4 | observado=" + (minimoSinParametros));
+    float ganadoPrueba7 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba7) {
+        ganadoPrueba7 = 0.5;
+        puntajeCriterio12 = puntajeCriterio12 + ganadoPrueba7;
+        puntos = puntos + ganadoPrueba7;
+        aprobadas = aprobadas + 1;
+    }
+    print("Funcion sin parametros que lee la configuracion | cumple=" + cumplePrueba7 + " | puntos=" + ganadoPrueba7 + "/0.5");
+
+    // Funciones sin parametros: 0.5 puntos.
+    bool cumplePrueba8 = permisoSinParametros;
+    print("  permisoSinParametros | esperado=true | observado=" + (permisoSinParametros));
+    float ganadoPrueba8 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba8) {
+        ganadoPrueba8 = 0.5;
+        puntajeCriterio12 = puntajeCriterio12 + ganadoPrueba8;
+        puntos = puntos + ganadoPrueba8;
+        aprobadas = aprobadas + 1;
+    }
+    print("Funcion sin parametros con retorno bool | cumple=" + cumplePrueba8 + " | puntos=" + ganadoPrueba8 + "/0.5");
+
+    int replicasAumentadas = calcularReplicas(2, 2, true);
+    int replicasConservadas = calcularReplicas(2, 2, false);
+    float costoCalculado = estimarCosto(2.5, 3);
+    bool capacidadValida = esApto(servidorWeb, 8);
+    int sumaPlan = sumarObjetivos(objetivos);
+
+    // Funciones: parametros tipados y return: 1 puntos.
+    bool cumplePrueba9 = replicasAumentadas == 4;
+    print("  replicasAumentadas | esperado=4 | observado=" + (replicasAumentadas));
+    float ganadoPrueba9 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba9) {
+        ganadoPrueba9 = 1.0;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba9;
+        puntos = puntos + ganadoPrueba9;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametros int para calcular replicas | cumple=" + cumplePrueba9 + " | puntos=" + ganadoPrueba9 + "/1");
+
+    // Funciones: parametros tipados y return: 1 puntos.
+    bool cumplePrueba10 = replicasConservadas == 2;
+    print("  replicasConservadas | esperado=2 | observado=" + (replicasConservadas));
+    float ganadoPrueba10 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba10) {
+        ganadoPrueba10 = 1.0;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba10;
+        puntos = puntos + ganadoPrueba10;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametro bool selecciona el retorno inmediato | cumple=" + cumplePrueba10 + " | puntos=" + ganadoPrueba10 + "/1");
+
+    // Funciones: parametros tipados y return: 0.5 puntos.
+    bool cumplePrueba11 = costoCalculado == 7.5;
+    print("  costoCalculado | esperado=7.5 | observado=" + (costoCalculado));
+    float ganadoPrueba11 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba11) {
+        ganadoPrueba11 = 0.5;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba11;
+        puntos = puntos + ganadoPrueba11;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametro float y costo retornado | cumple=" + cumplePrueba11 + " | puntos=" + ganadoPrueba11 + "/0.5");
+
+    // Funciones: parametros tipados y return: 0.5 puntos.
+    bool cumplePrueba12 = capacidadValida;
+    print("  capacidadValida | esperado=true | observado=" + (capacidadValida));
+    float ganadoPrueba12 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba12) {
+        ganadoPrueba12 = 0.5;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba12;
+        puntos = puntos + ganadoPrueba12;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametro server para consultar capacidad | cumple=" + cumplePrueba12 + " | puntos=" + ganadoPrueba12 + "/0.5");
+
+    // Funciones: parametros tipados y return: 0.5 puntos.
+    bool cumplePrueba13 = sumaPlan == 9;
+    print("  sumaPlan | esperado=9 | observado=" + (sumaPlan));
+    float ganadoPrueba13 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba13) {
+        ganadoPrueba13 = 0.5;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba13;
+        puntos = puntos + ganadoPrueba13;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametro de arreglo recorrido dentro de una funcion | cumple=" + cumplePrueba13 + " | puntos=" + ganadoPrueba13 + "/0.5");
+
+    // ALCANCE DE LA CONFIGURACION Y CORTO CIRCUITO
+    print("--- ALCANCE DE LA CONFIGURACION Y CORTO CIRCUITO ---");
+
+    // Ambitos globales, locales y de funcion: 0.5 puntos.
+    bool cumplePrueba14 = memoriaMinima() == 4;
+    print("  minimoMemoria | esperado=4 | observado=" + (minimoMemoria));
+    float ganadoPrueba14 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba14) {
+        ganadoPrueba14 = 0.5;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba14;
+        puntos = puntos + ganadoPrueba14;
+        aprobadas = aprobadas + 1;
+    }
+    print("Lectura de la configuracion global | cumple=" + cumplePrueba14 + " | puntos=" + ganadoPrueba14 + "/0.5");
+
+    int resultadoAmbito = probarAmbitos(6);
+
+    // Ambitos globales, locales y de funcion: 1 puntos.
+    bool cumplePrueba15 = resultadoAmbito == 28 && minimoMemoria == 4;
+    print("  probarAmbitos(6) | esperado=28 | observado=" + (resultadoAmbito));
+    print("  minimoMemoria global | esperado=4 | observado=" + (minimoMemoria));
+    float ganadoPrueba15 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba15) {
+        ganadoPrueba15 = 1.0;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba15;
+        puntos = puntos + ganadoPrueba15;
+        aprobadas = aprobadas + 1;
+    }
+    print("Parametros y locales no modifican la configuracion global | cumple=" + cumplePrueba15 + " | puntos=" + ganadoPrueba15 + "/1");
+
+    bool alcanceBloque = false;
+    if (true) {
+        int minimoMemoria = 16;
+        alcanceBloque = minimoMemoria == 16;
+    }
+
+    // Ambitos globales, locales y de funcion: 1 puntos.
+    bool cumplePrueba16 = alcanceBloque && minimoMemoria == 4;
+    print("  alcanceBloque | esperado=true | observado=" + (alcanceBloque));
+    print("  minimoMemoria global | esperado=4 | observado=" + (minimoMemoria));
+    float ganadoPrueba16 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba16) {
+        ganadoPrueba16 = 1.0;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba16;
+        puntos = puntos + ganadoPrueba16;
+        aprobadas = aprobadas + 1;
+    }
+    print("Configuracion local de un bloque | cumple=" + cumplePrueba16 + " | puntos=" + ganadoPrueba16 + "/1");
+
+    int primeraSimulacion = probarAmbitos(2);
+    int segundaSimulacion = probarAmbitos(6);
+
+    // Ambitos globales, locales y de funcion: 1 puntos.
+    bool cumplePrueba17 = primeraSimulacion == 20 && segundaSimulacion == 28 && minimoMemoria == 4;
+    print("  primeraSimulacion | esperado=20 | observado=" + (primeraSimulacion));
+    print("  segundaSimulacion | esperado=28 | observado=" + (segundaSimulacion));
+    float ganadoPrueba17 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba17) {
+        ganadoPrueba17 = 1.0;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba17;
+        puntos = puntos + ganadoPrueba17;
+        aprobadas = aprobadas + 1;
+    }
+    print("Llamadas sucesivas conservan sus propios parametros | cumple=" + cumplePrueba17 + " | puntos=" + ganadoPrueba17 + "/1");
+
+    consultas = 0;
+    bool omiteAnd = false && esApto(servidorWeb, 4);
+    bool omiteOr = true || esApto(servidorWeb, 4);
+
+    // Evaluacion de corto circuito (&& y ||): 0.75 puntos.
+    bool cumplePrueba18 = !omiteAnd && omiteOr && consultas == 0;
+    print("  consultas omitidas | esperado=0 | observado=" + (consultas));
+    float ganadoPrueba18 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba18) {
+        ganadoPrueba18 = 0.75;
+        puntajeCriterio11 = puntajeCriterio11 + ganadoPrueba18;
+        puntos = puntos + ganadoPrueba18;
+        aprobadas = aprobadas + 1;
+    }
+    print("Corto circuito evita consultas innecesarias | cumple=" + cumplePrueba18 + " | puntos=" + ganadoPrueba18 + "/0.75");
+
+    bool ejecutaAnd = true && esApto(servidorWeb, 4);
+    bool ejecutaOr = false || esApto(servidorWeb, 4);
+
+    // Evaluacion de corto circuito (&& y ||): 0.75 puntos.
+    bool cumplePrueba19 = ejecutaAnd && ejecutaOr && consultas == 2;
+    print("  consultas realizadas | esperado=2 | observado=" + (consultas));
+    float ganadoPrueba19 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba19) {
+        ganadoPrueba19 = 0.75;
+        puntajeCriterio11 = puntajeCriterio11 + ganadoPrueba19;
+        puntos = puntos + ganadoPrueba19;
+        aprobadas = aprobadas + 1;
+    }
+    print("Corto circuito permite consultas necesarias | cumple=" + cumplePrueba19 + " | puntos=" + ganadoPrueba19 + "/0.75");
+
+    // TAREA DE ARRANQUE: WHILE Y RECURSOS
+    print("--- TAREA DE ARRANQUE: WHILE Y RECURSOS ---");
+
+    run levantar;
+
+    // Ciclo while y actualizacion de variables: 1.5 puntos.
+    bool cumplePrueba20 = visitasPreparacion == 2 && iniciados == 2 && memoriaPreparada == 12;
+    print("  visitasPreparacion | esperado=2 | observado=" + (visitasPreparacion));
+    print("  iniciados | esperado=2 | observado=" + (iniciados));
+    print("  memoriaPreparada | esperado=12 | observado=" + (memoriaPreparada));
+    float ganadoPrueba20 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba20) {
+        ganadoPrueba20 = 1.5;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoPrueba20;
+        puntos = puntos + ganadoPrueba20;
+        aprobadas = aprobadas + 1;
+    }
+    print("While prepara los dos servidores del arreglo | cumple=" + cumplePrueba20 + " | puntos=" + ganadoPrueba20 + "/1.5");
+
+    bool mantenimientoPendiente = false;
+    int revisionesExtra = 0;
+    while (mantenimientoPendiente) {
+        revisionesExtra = revisionesExtra + 1;
+        mantenimientoPendiente = false;
+    }
+
+    // Ciclo while y actualizacion de variables: 0.5 puntos.
+    bool cumplePrueba21 = revisionesExtra == 0;
+    print("  revisionesExtra | esperado=0 | observado=" + (revisionesExtra));
+    float ganadoPrueba21 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba21) {
+        ganadoPrueba21 = 0.5;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoPrueba21;
+        puntos = puntos + ganadoPrueba21;
+        aprobadas = aprobadas + 1;
+    }
+    print("While no ejecuta mantenimiento deshabilitado | cumple=" + cumplePrueba21 + " | puntos=" + ganadoPrueba21 + "/0.5");
+
+    // Declaracion de task y ejecucion mediante run: 0.75 puntos.
+    bool cumplePrueba22 = pasos == 1 && traza == "levantar;" && servidorWeb.status == "running" && servidorReserva.status == "running";
+    print("  pasos | esperado=1 | observado=" + (pasos));
+    print("  traza | esperado=levantar; | observado=" + (traza));
+    float ganadoPrueba22 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba22) {
+        ganadoPrueba22 = 0.75;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba22;
+        puntos = puntos + ganadoPrueba22;
+        aprobadas = aprobadas + 1;
+    }
+    print("Primera tarea establece el estado para la siguiente | cumple=" + cumplePrueba22 + " | puntos=" + ganadoPrueba22 + "/0.75");
+
+    // TAREA DE PAQUETES: FOR, BREAK, CONTINUE Y FUNCIONES
+    print("--- TAREA DE PAQUETES: FOR, BREAK, CONTINUE Y FUNCIONES ---");
+
+    run preparar;
+
+    // Ciclo for (inicializacion, condicion y cambio): 1.5 puntos.
+    bool cumplePrueba23 = trazaPaquetes == "0;1;2;3;4;" && paquetesVisitados == 5;
+    print("  trazaPaquetes | esperado=0;1;2;3;4; | observado=" + (trazaPaquetes));
+    print("  paquetesVisitados | esperado=5 | observado=" + (paquetesVisitados));
+    float ganadoPrueba23 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba23) {
+        ganadoPrueba23 = 1.5;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrueba23;
+        puntos = puntos + ganadoPrueba23;
+        aprobadas = aprobadas + 1;
+    }
+    print("For recorre el plan y actualiza su indice tras continue | cumple=" + cumplePrueba23 + " | puntos=" + ganadoPrueba23 + "/1.5");
+
+    int extrasVisitados = 0;
+    for (int i = length(planPaquetes); i < length(planPaquetes); i = i + 1) {
+        extrasVisitados = extrasVisitados + 1;
+    }
+
+    // Ciclo for (inicializacion, condicion y cambio): 0.5 puntos.
+    bool cumplePrueba24 = extrasVisitados == 0;
+    print("  extrasVisitados | esperado=0 | observado=" + (extrasVisitados));
+    float ganadoPrueba24 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba24) {
+        ganadoPrueba24 = 0.5;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrueba24;
+        puntos = puntos + ganadoPrueba24;
+        aprobadas = aprobadas + 1;
+    }
+    print("For con rango ya agotado | cumple=" + cumplePrueba24 + " | puntos=" + ganadoPrueba24 + "/0.5");
+
+    // Control de ciclos: break y continue: 0.5 puntos.
+    bool cumplePrueba25 = paquetesOmitidos == 1 && !contienePaquete(servidorWeb, "temporal");
+    print("  paquetesOmitidos | esperado=1 | observado=" + (paquetesOmitidos));
+    float ganadoPrueba25 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba25) {
+        ganadoPrueba25 = 0.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba25;
+        puntos = puntos + ganadoPrueba25;
+        aprobadas = aprobadas + 1;
+    }
+    print("Continue omite el paquete temporal | cumple=" + cumplePrueba25 + " | puntos=" + ganadoPrueba25 + "/0.5");
+
+    // Control de ciclos: break y continue: 0.5 puntos.
+    bool cumplePrueba26 = rupturaEn == 4 && paquetesInstalados == 3 && !contienePaquete(servidorWeb, "posterior");
+    print("  rupturaEn | esperado=4 | observado=" + (rupturaEn));
+    print("  paquetesInstalados | esperado=3 | observado=" + (paquetesInstalados));
+    float ganadoPrueba26 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba26) {
+        ganadoPrueba26 = 0.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba26;
+        puntos = puntos + ganadoPrueba26;
+        aprobadas = aprobadas + 1;
+    }
+    print("Break respeta el maximo de instalaciones | cumple=" + cumplePrueba26 + " | puntos=" + ganadoPrueba26 + "/0.5");
+
+    int indiceRevision = 0;
+    int sumaHabilitada = 0;
+    while (indiceRevision < length(habilitados)) {
+        int actual = indiceRevision;
+        indiceRevision = indiceRevision + 1;
+        if (!habilitados[actual]) {
+            continue;
+        }
+        sumaHabilitada = sumaHabilitada + objetivos[actual];
+        if (sumaHabilitada >= 6) {
+            break;
+        }
+    }
+
+    // Control de ciclos: break y continue: 0.5 puntos.
+    bool cumplePrueba27 = sumaHabilitada == 6 && indiceRevision == 3;
+    print("  sumaHabilitada | esperado=6 | observado=" + (sumaHabilitada));
+    print("  indiceRevision | esperado=3 | observado=" + (indiceRevision));
+    float ganadoPrueba27 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba27) {
+        ganadoPrueba27 = 0.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba27;
+        puntos = puntos + ganadoPrueba27;
+        aprobadas = aprobadas + 1;
+    }
+    print("While combina continue y break sobre el plan booleano | cumple=" + cumplePrueba27 + " | puntos=" + ganadoPrueba27 + "/0.5");
+
+    // Declaracion de task y ejecucion mediante run: 0.75 puntos.
+    bool cumplePrueba28 = pasos == 2 && paquetesInstalados == 3 && costo == 7.5;
+    print("  pasos | esperado=2 | observado=" + (pasos));
+    print("  costo | esperado=7.5 | observado=" + (costo));
+    float ganadoPrueba28 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba28) {
+        ganadoPrueba28 = 0.75;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba28;
+        puntos = puntos + ganadoPrueba28;
+        aprobadas = aprobadas + 1;
+    }
+    print("Segunda tarea usa funciones y recursos ya iniciados | cumple=" + cumplePrueba28 + " | puntos=" + ganadoPrueba28 + "/0.75");
+
+    // Acciones nativas: install y uninstall: 1 puntos.
+    bool cumplePrueba29 = length(servidorWeb.packages) == 3 && contienePaquete(servidorWeb, "docker") && contienePaquete(servidorWeb, "git") && contienePaquete(servidorWeb, "nginx");
+    print("  paquetes instalados | esperado=3 | observado=" + (length(servidorWeb.packages)));
+    float ganadoPrueba29 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba29) {
+        ganadoPrueba29 = 1.0;
+        puntajeCriterio9 = puntajeCriterio9 + ganadoPrueba29;
+        puntos = puntos + ganadoPrueba29;
+        aprobadas = aprobadas + 1;
+    }
+    print("Install aplicado desde el for conserva los paquetes seleccionados | cumple=" + cumplePrueba29 + " | puntos=" + ganadoPrueba29 + "/1");
+
+    // TAREA DE DESPLIEGUE Y MANTENIMIENTO
+    print("--- TAREA DE DESPLIEGUE Y MANTENIMIENTO ---");
+
+    run desplegar;
+
+    // Declaracion de task y ejecucion mediante run: 1 puntos.
+    bool cumplePrueba30 = pasos == 3 && traza == "levantar;preparar;desplegar;";
+    print("  traza | esperado=levantar;preparar;desplegar; | observado=" + (traza));
+    float ganadoPrueba30 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba30) {
+        ganadoPrueba30 = 1.0;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba30;
+        puntos = puntos + ganadoPrueba30;
+        aprobadas = aprobadas + 1;
+    }
+    print("Run respeta el orden de las tres tareas | cumple=" + cumplePrueba30 + " | puntos=" + ganadoPrueba30 + "/1");
+
+    // Declaracion de task y ejecucion mediante run: 1 puntos.
+    bool cumplePrueba31 = replicasObjetivo == 4 && costo == 7.5;
+    print("  replicasObjetivo | esperado=4 | observado=" + (replicasObjetivo));
+    print("  costo | esperado=7.5 | observado=" + (costo));
+    float ganadoPrueba31 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba31) {
+        ganadoPrueba31 = 1.0;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba31;
+        puntos = puntos + ganadoPrueba31;
+        aprobadas = aprobadas + 1;
+    }
+    print("La tarea usa el resultado de las funciones | cumple=" + cumplePrueba31 + " | puntos=" + ganadoPrueba31 + "/1");
+
+    // Acciones nativas: deploy y scale: 2 puntos.
+    bool cumplePrueba32 = despliegueCorrecto && api.host == servidorWeb && api.status == "running";
+    print("  despliegueCorrecto | esperado=true | observado=" + (despliegueCorrecto));
+    print("  api.status | esperado=running | observado=" + (api.status));
+    float ganadoPrueba32 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba32) {
+        ganadoPrueba32 = 2.0;
+        puntajeCriterio10 = puntajeCriterio10 + ganadoPrueba32;
+        puntos = puntos + ganadoPrueba32;
+        aprobadas = aprobadas + 1;
+    }
+    print("Deploy dentro de la tarea asocia la API al servidor preparado | cumple=" + cumplePrueba32 + " | puntos=" + ganadoPrueba32 + "/2");
+
+    // Acciones nativas: deploy y scale: 1.5 puntos.
+    bool cumplePrueba33 = escalaCorrecta && api.replicas == 4;
+    print("  replicas finales | esperado=4 | observado=" + (api.replicas));
+    float ganadoPrueba33 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba33) {
+        ganadoPrueba33 = 1.5;
+        puntajeCriterio10 = puntajeCriterio10 + ganadoPrueba33;
+        puntos = puntos + ganadoPrueba33;
+        aprobadas = aprobadas + 1;
+    }
+    print("Scale utiliza un resultado calculado con parametros y bool | cumple=" + cumplePrueba33 + " | puntos=" + ganadoPrueba33 + "/1.5");
+
+    bool retiroGit = uninstall(servidorWeb, "git");
+
+    // Acciones nativas: install y uninstall: 1 puntos.
+    bool cumplePrueba34 = retiroGit && length(servidorWeb.packages) == 2 && !contienePaquete(servidorWeb, "git") && contienePaquete(servidorWeb, "docker") && contienePaquete(servidorWeb, "nginx");
+    print("  retiroGit | esperado=true | observado=" + (retiroGit));
+    print("  paquetes restantes | esperado=2 | observado=" + (length(servidorWeb.packages)));
+    float ganadoPrueba34 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba34) {
+        ganadoPrueba34 = 1.0;
+        puntajeCriterio9 = puntajeCriterio9 + ganadoPrueba34;
+        puntos = puntos + ganadoPrueba34;
+        aprobadas = aprobadas + 1;
+    }
+    print("Uninstall retira un paquete previamente instalado | cumple=" + cumplePrueba34 + " | puntos=" + ganadoPrueba34 + "/1");
+
+    // Acceso a propiedades de recursos: 1 puntos.
+    bool cumplePrueba35 = servidorWeb.cpu == 4 && servidorWeb.memory == 8 && servidorWeb.disk == 100 && servidorWeb.os == "ubuntu";
+    print("  cpu | esperado=4 | observado=" + (servidorWeb.cpu));
+    print("  memory | esperado=8 | observado=" + (servidorWeb.memory));
+    float ganadoPrueba35 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba35) {
+        ganadoPrueba35 = 1.0;
+        puntajeCriterio8 = puntajeCriterio8 + ganadoPrueba35;
+        puntos = puntos + ganadoPrueba35;
+        aprobadas = aprobadas + 1;
+    }
+    print("Lectura de propiedades del servidor utilizado | cumple=" + cumplePrueba35 + " | puntos=" + ganadoPrueba35 + "/1");
+
+    // Acceso a propiedades de recursos: 0.75 puntos.
+    bool cumplePrueba36 = api.port == 8080 && api.replicas == 4 && api.status == "running";
+    print("  api.port | esperado=8080 | observado=" + (api.port));
+    print("  api.replicas | esperado=4 | observado=" + (api.replicas));
+    float ganadoPrueba36 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba36) {
+        ganadoPrueba36 = 0.75;
+        puntajeCriterio8 = puntajeCriterio8 + ganadoPrueba36;
+        puntos = puntos + ganadoPrueba36;
+        aprobadas = aprobadas + 1;
+    }
+    print("Lectura de propiedades del servicio actualizado | cumple=" + cumplePrueba36 + " | puntos=" + ganadoPrueba36 + "/0.75");
+
+    server aliasServidor = servidorWeb;
+    service aliasServicio = api;
+
+    // Acceso a propiedades de recursos: 0.75 puntos.
+    bool cumplePrueba37 = aliasServidor == servidorWeb && aliasServicio == api && aliasServidor.memory == 8 && aliasServicio.host == servidorWeb;
+    print("  aliasServidor == servidorWeb | esperado=true | observado=" + (aliasServidor == servidorWeb));
+    print("  aliasServicio == api | esperado=true | observado=" + (aliasServicio == api));
+    float ganadoPrueba37 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba37) {
+        ganadoPrueba37 = 0.75;
+        puntajeCriterio8 = puntajeCriterio8 + ganadoPrueba37;
+        puntos = puntos + ganadoPrueba37;
+        aprobadas = aprobadas + 1;
+    }
+    print("Referencias al mismo servidor y servicio del escenario | cumple=" + cumplePrueba37 + " | puntos=" + ganadoPrueba37 + "/0.75");
+
+    print("================================================");
+    print("RESUMEN INTERMEDIO");
+    print("PUNTAJE AUTOMATICO: " + puntos + "/30");
+    print("Comprobaciones aprobadas: " + aprobadas + "/" + comprobaciones);
+    print("TABLA FINAL - PUNTEO POR CRITERIO");
+    print("Criterio | Maximo de la hoja | Obtenido");
+
+    print("Ciclo while y actualizacion de variables | 2 | " + puntajeCriterio1);
+
+    print("Ciclo for (inicializacion, condicion y cambio) | 2 | " + puntajeCriterio2);
+
+    print("Control de ciclos: break y continue | 1.5 | " + puntajeCriterio3);
+
+    print("Arreglos: tipos, literales, indices y length | 3.5 | " + puntajeCriterio4);
+
+    print("Funciones: parametros tipados y return | 3.5 | " + puntajeCriterio5);
+
+    print("Ambitos globales, locales y de funcion | 3.5 | " + puntajeCriterio6);
+
+    print("Declaracion de task y ejecucion mediante run | 3.5 | " + puntajeCriterio7);
+
+    print("Acceso a propiedades de recursos | 2.5 | " + puntajeCriterio8);
+
+    print("Acciones nativas: install y uninstall | 2 | " + puntajeCriterio9);
+
+    print("Acciones nativas: deploy y scale | 3.5 | " + puntajeCriterio10);
+
+    print("Evaluacion de corto circuito (&& y ||) | 1.5 | " + puntajeCriterio11);
+
+    print("Funciones sin parametros | 1 | " + puntajeCriterio12);
+
+    print("TOTAL AUTOMATICO | 30 | " + puntos);
+
+    print("FIN_INTERMEDIO_ACUMULATIVO");
+
+}

@@ -1,11 +1,7 @@
 import * as N from '../ast/Nodes.js';
-
-//Creacion de la clase Parser
 const TYPES = new Set(['int', 'float', 'string', 'bool', 'server', 'service', 'database']);
 const RESOURCES = new Set(['server', 'service', 'database']);
 const LEVELS = [['||'], ['&&'], ['==', '!='], ['<', '<=', '>', '>='], ['+', '-'], ['*', '/', '%']];
-
-//Creacion de la clase ParseFailure
 class ParseFailure extends Error {}
 
 export class Parser {
@@ -62,7 +58,6 @@ export class Parser {
     return type;
   }
 
-  //Creacion de la funcion declaration
   declaration() {
     const loc = this.peek();
     if (this.match('function')) {
@@ -93,7 +88,6 @@ export class Parser {
     if (TYPES.has(this.peek().type)) return this.variable(true);
     this.fail('Se esperaba una declaración global o main.');
   }
-  //Creacion de la funcion variable
   variable(semicolon) {
     const loc = this.peek(), type = this.type(), name = this.expect('IDENTIFIER').lexeme;
     const initializer = this.match('=') ? this.expression() : null;

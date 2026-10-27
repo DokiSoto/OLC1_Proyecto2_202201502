@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { analyzeCode, downloadFile } from './services/api.js';
 import DataTable from './components/DataTable.jsx';
 import AstView from './components/AstView.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const EXAMPLE = `server backend {
     cpu = 4;
@@ -96,8 +97,8 @@ export default function App() {
     try {
       const data = await analyzeCode(source, execute); setResult(data);
       setTab(data.errors.length ? 'Errores' : 'Consola');
-      setNotice(data.success ? `${execute ? 'Ejecución' : 'Análisis'} finalizado correctamente.` : 'Proceso finalizado con errores.');
-    } catch (error) { setNotice(`No se completó la solicitud: ${error.message}. Comprueba el backend.`); }
+      setNotice(data.success ? execute ? 'Ejecución finalizada correctamente.' : 'Análisis finalizado correctamente; no se ejecutaron instrucciones.' : 'Proceso finalizado con errores.');
+    } catch (error) { setResult(null); setNotice(`No se completó la solicitud: ${error.message}. Comprueba el backend.`); }
     finally { setBusy(false); }
   }
   const infra = result?.infrastructure;
@@ -137,6 +138,7 @@ export default function App() {
         <div className="tabs" role="tablist">{TABS.map(name => <button role="tab" aria-selected={tab === name}
           key={name} onClick={() => setTab(name)} className={tab === name ? 'active' : ''}>{name}</button>)}</div>
         <div className="result-body" role="tabpanel">
+          <ErrorBoundary resetKey={result}>
           {tab === 'Consola' && <pre className="console">{result?.console.join('\n') || 'La salida de print aparecerá aquí.'}</pre>}
           {tab === 'Bitácora' && <pre className="console">{result?.log.join('\n') || 'Las acciones de infraestructura aparecerán aquí.'}</pre>}
           {tab === 'Errores' && <DataTable rows={result?.errors} columns={[
@@ -145,11 +147,12 @@ export default function App() {
             ['lexeme', 'Lexema'], ['type', 'Token'], ['line', 'Línea'], ['column', 'Columna']]} />}
           {tab === 'Símbolos' && <DataTable rows={result?.symbols} columns={[
             ['identifier', 'Identificador'], ['category', 'Categoría'], ['type', 'Tipo'], ['scope', 'Ámbito'], ['value', 'Valor']]} />}
-          {tab === 'AST' && <AstView tree={result?.ast} />}
+          {tab === 'AST' && <AstView key={source} tree={result?.ast} />}
           {tab === 'Infraestructura' && <div className="infra-groups">
             {[['Servidores', infra?.servers], ['Servicios', infra?.services], ['Bases de datos', infra?.databases], ['Conexiones', infra?.connections]]
               .map(([label, rows]) => <section key={label}><h3>{label}</h3><DataTable rows={rows} /></section>)}
           </div>}
+          </ErrorBoundary>
         </div>
       </section>
     </div>

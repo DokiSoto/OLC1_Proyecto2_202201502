@@ -1,0 +1,808 @@
+/*
+AUTOINFRA - AVANZADO ACUMULATIVO
+*/
+
+server principal {
+    cpu = 4;
+    memory = 8;
+    disk = 100;
+    os = "ubuntu";
+}
+server procesamiento {
+    cpu = 8;
+    memory = 16;
+    disk = 200;
+    os = "ubuntu";
+}
+database central {
+    engine = "postgresql";
+    version = "16";
+    port = 5432;
+}
+database auditoria {
+    engine = "mysql";
+    version = "8.0";
+    port = 3306;
+}
+service api {
+    port = 8080;
+    replicas = 2;
+    dependsOn = [central];
+}
+service trabajador {
+    port = 8081;
+    replicas = 1;
+    dependsOn = [auditoria];
+}
+
+server[] equipos = [principal, procesamiento];
+database[] bases = [central, auditoria];
+service[] aplicaciones = [api, trabajador];
+string[] paquetes = ["docker", "temporal", "git", "nginx", "posterior"];
+string[] paquetesExtra = ["curl", "htop", "jq"];
+bool[] habilitar = [true, true];
+int minimoMemoria = 4;
+int basesIniciadas = 0;
+int equiposIniciados = 0;
+int paquetesPreparados = 0;
+int desplegados = 0;
+int escalados = 0;
+int conectados = 0;
+int desconectados = 0;
+int replicasApi = 0;
+int replicasTrabajador = 0;
+int replicasApiAntes = 0;
+int replicasTrabajadorAntes = 0;
+int cantidadAntes = 0;
+int cantidadInstalada = 0;
+int cantidadRetirada = 0;
+int pasos = 0;
+string traza = "";
+string estadoDetenido = "";
+string estadoReanudado = "";
+bool reinicioPrincipal = false;
+bool reinicioCentral = false;
+bool reinicioApi = false;
+bool instaloActualizacion = false;
+bool retiroGit = false;
+
+// Casos de prueba elegidos para el criterio de recursividad (6 puntos).
+// Fibonacci: F(0)=0 y F(1)=1. No usa cache ni funciones externas.
+function fibonacci(int n) int {
+    if (n == 0) {
+        return 0;
+    }
+    if (n == 1) {
+        return 1;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+// Version de Ackermann de dos argumentos no negativos.
+// No se prueban entradas mayores que (3,2).
+function ackermann(int m, int n) int {
+    if (m == 0) {
+        return n + 1;
+    }
+    if (n == 0) {
+        return ackermann(m - 1, 1);
+    }
+    return ackermann(m - 1, ackermann(m, n - 1));
+}
+function factorial(int n) int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+// Algoritmo de Euclides. El caso base ocurre ANTES del modulo.
+function mcd(int a, int b) int {
+    if (b == 0) {
+        return a;
+    }
+    return mcd(b, a % b);
+}
+function sumar(int a, int b) int {
+    return a + b;
+}
+function doble(int n) int {
+    return n * 2;
+}
+function alcanza(int valor, int minimo) bool {
+    return valor >= minimo;
+}
+function memoriaMinima() int {
+    return minimoMemoria;
+}
+function infraestructuraLista(server s, database db, bool habilitado) bool {
+    return habilitado && s.status == "running" && db.status == "running"
+        && s.memory >= memoriaMinima();
+}
+function contienePaquete(server s, string nombre) bool {
+    for (int i = 0; i < length(s.packages); i = i + 1) {
+        if (s.packages[i] == nombre) {
+            return true;
+        }
+    }
+    return false;
+}
+function prepararServidor(server s, string[] plan, int maximo) int {
+    int preparados = 0;
+    for (int i = 0; i < length(plan); i = i + 1) {
+        if (plan[i] == "temporal") {
+            continue;
+        }
+        if (preparados >= maximo) {
+            break;
+        }
+        bool instalado = install(s, plan[i]);
+        if (instalado) {
+            preparados = preparados + 1;
+        }
+    }
+    return preparados;
+}
+
+task arranque {
+    int i = 0;
+    while (i < length(bases)) {
+        bool inicio = start(bases[i]);
+        if (inicio) {
+            basesIniciadas = basesIniciadas + 1;
+        }
+        i = i + 1;
+    }
+    for (int j = 0; j < length(equipos); j = j + 1) {
+        bool inicioEquipo = start(equipos[j]);
+        if (inicioEquipo) {
+            equiposIniciados = equiposIniciados + 1;
+        }
+        paquetesPreparados = paquetesPreparados + prepararServidor(equipos[j], paquetes, 3);
+    }
+    pasos = pasos + 1;
+    traza = traza + "arranque;";
+}
+task despliegue {
+    for (int i = 0; i < length(aplicaciones); i = i + 1) {
+        if (infraestructuraLista(equipos[i], bases[i], habilitar[i])) {
+            bool desplego = deploy(equipos[i], aplicaciones[i]);
+            if (desplego) {
+                desplegados = desplegados + 1;
+            }
+        }
+    }
+    pasos = pasos + 1;
+    traza = traza + "despliegue;";
+}
+task reiniciarRecursos {
+    reinicioPrincipal = restart(principal);
+    reinicioCentral = restart(central);
+    reinicioApi = restart(api);
+    pasos = pasos + 1;
+    traza = traza + "reinicio;";
+}
+task conectarAplicaciones {
+    for (int i = 0; i < length(aplicaciones); i = i + 1) {
+        bool conecto = connect(aplicaciones[i], bases[i]);
+        if (conecto) {
+            conectados = conectados + 1;
+        }
+    }
+    pasos = pasos + 1;
+    traza = traza + "conectar;";
+}
+task actualizarPaquetes {
+    cantidadAntes = length(principal.packages);
+    instaloActualizacion = install(principal, "curl");
+    cantidadInstalada = length(principal.packages);
+    retiroGit = uninstall(principal, "git");
+    cantidadRetirada = length(principal.packages);
+    pasos = pasos + 1;
+    traza = traza + "actualizar;";
+}
+task escalarAplicaciones {
+    replicasApiAntes = api.replicas;
+    replicasTrabajadorAntes = trabajador.replicas;
+    int[] objetivosRecursivos = [replicasApi, replicasTrabajador];
+    for (int i = 0; i < length(aplicaciones); i = i + 1) {
+        if (objetivosRecursivos[i] >= 1 && aplicaciones[i].status == "running") {
+            bool escalo = scale(aplicaciones[i], objetivosRecursivos[i]);
+            if (escalo) {
+                escalados = escalados + 1;
+            }
+        }
+    }
+    pasos = pasos + 1;
+    traza = traza + "escalar;";
+}
+task desconectarAplicaciones {
+    for (int i = 0; i < length(aplicaciones); i = i + 1) {
+        bool desconecto = disconnect(aplicaciones[i], bases[i]);
+        if (desconecto) {
+            desconectados = desconectados + 1;
+        }
+    }
+    pasos = pasos + 1;
+    traza = traza + "desconectar;";
+}
+task reanudarServicio {
+    stop(api);
+    estadoDetenido = api.status;
+    start(api);
+    estadoReanudado = api.status;
+    pasos = pasos + 1;
+    traza = traza + "reanudar;";
+}
+
+main {
+    float puntos = 0.0;
+    int comprobaciones = 0;
+    int aprobadas = 0;
+
+    float puntajeCriterio1 = 0.0;
+
+    float puntajeCriterio2 = 0.0;
+
+    float puntajeCriterio3 = 0.0;
+
+    float puntajeCriterio4 = 0.0;
+
+    float puntajeCriterio5 = 0.0;
+
+    float puntajeCriterio6 = 0.0;
+
+    float puntajeCriterio7 = 0.0;
+
+    print("AUTOINFRA - AVANZADO ACUMULATIVO");
+    print("Despliegue de dos servicios con dependencias y replicas calculadas recursivamente.");
+    print("Puntaje automatico disponible: 39.");
+
+    // PLAN RECURSIVO: FACTORIAL, FIBONACCI, ACKERMANN Y MCD
+    print("--- PLAN RECURSIVO: FACTORIAL, FIBONACCI, ACKERMANN Y MCD ---");
+
+    int factCero = factorial(0);
+    int factUno = factorial(1);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.25 puntos.
+    bool cumplePrueba1 = factCero == 1 && factUno == 1;
+    print("  factorial(0) | esperado=1 | observado=" + (factCero));
+    print("  factorial(1) | esperado=1 | observado=" + (factUno));
+    float ganadoPrueba1 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba1) {
+        ganadoPrueba1 = 0.25;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba1;
+        puntos = puntos + ganadoPrueba1;
+        aprobadas = aprobadas + 1;
+    }
+    print("Factorial: casos base | cumple=" + cumplePrueba1 + " | puntos=" + ganadoPrueba1 + "/0.25");
+
+    int factTres = factorial(3);
+    int factCinco = factorial(5);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.75 puntos.
+    bool cumplePrueba2 = factTres == 6 && factCinco == 120;
+    print("  factorial(3) | esperado=6 | observado=" + (factTres));
+    print("  factorial(5) | esperado=120 | observado=" + (factCinco));
+    float ganadoPrueba2 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba2) {
+        ganadoPrueba2 = 0.75;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba2;
+        puntos = puntos + ganadoPrueba2;
+        aprobadas = aprobadas + 1;
+    }
+    print("Factorial: retorno acumulado y llamadas independientes | cumple=" + cumplePrueba2 + " | puntos=" + ganadoPrueba2 + "/0.75");
+
+    int fibCero = fibonacci(0);
+    int fibUno = fibonacci(1);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.5 puntos.
+    bool cumplePrueba3 = fibCero == 0 && fibUno == 1;
+    print("  fibonacci(0) | esperado=0 | observado=" + (fibCero));
+    print("  fibonacci(1) | esperado=1 | observado=" + (fibUno));
+    float ganadoPrueba3 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba3) {
+        ganadoPrueba3 = 0.5;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba3;
+        puntos = puntos + ganadoPrueba3;
+        aprobadas = aprobadas + 1;
+    }
+    print("Fibonacci: ambos casos base | cumple=" + cumplePrueba3 + " | puntos=" + ganadoPrueba3 + "/0.5");
+
+    int[] entradasFib = [2, 3, 4, 5, 6, 8];
+    int[] esperadosFib = [1, 2, 3, 5, 8, 21];
+    bool serieFibonacci = true;
+    for (int i = 0; i < length(entradasFib); i = i + 1) {
+        int resultado = fibonacci(entradasFib[i]);
+        print("  fibonacci(" + entradasFib[i] + ") | esperado=" + esperadosFib[i] + " | observado=" + resultado);
+        if (resultado != esperadosFib[i]) {
+            serieFibonacci = false;
+        }
+    }
+
+    // Funciones recursivas: llamadas, caso base y retorno: 1 puntos.
+    bool cumplePrueba4 = serieFibonacci;
+    print("  serieFibonacci | esperado=true | observado=" + (serieFibonacci));
+    float ganadoPrueba4 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba4) {
+        ganadoPrueba4 = 1.0;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba4;
+        puntos = puntos + ganadoPrueba4;
+        aprobadas = aprobadas + 1;
+    }
+    print("Fibonacci: doble llamada recursiva dentro de un for | cumple=" + cumplePrueba4 + " | puntos=" + ganadoPrueba4 + "/1");
+
+    int fibDiez = fibonacci(10);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.5 puntos.
+    bool cumplePrueba5 = fibDiez == 55;
+    print("  fibonacci(10) | esperado=55 | observado=" + (fibDiez));
+    float ganadoPrueba5 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba5) {
+        ganadoPrueba5 = 0.5;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba5;
+        puntos = puntos + ganadoPrueba5;
+        aprobadas = aprobadas + 1;
+    }
+    print("Fibonacci: llamada posterior conserva sus entornos | cumple=" + cumplePrueba5 + " | puntos=" + ganadoPrueba5 + "/0.5");
+
+    int ackCeroCero = ackermann(0, 0);
+    int ackCeroCuatro = ackermann(0, 4);
+    int ackUnoCero = ackermann(1, 0);
+    int ackDosCero = ackermann(2, 0);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.5 puntos.
+    bool cumplePrueba6 = ackCeroCero == 1 && ackCeroCuatro == 5 && ackUnoCero == 2 && ackDosCero == 3;
+    print("  ackermann(0,0) | esperado=1 | observado=" + (ackCeroCero));
+    print("  ackermann(0,4) | esperado=5 | observado=" + (ackCeroCuatro));
+    print("  ackermann(1,0) | esperado=2 | observado=" + (ackUnoCero));
+    print("  ackermann(2,0) | esperado=3 | observado=" + (ackDosCero));
+    float ganadoPrueba6 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba6) {
+        ganadoPrueba6 = 0.5;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba6;
+        puntos = puntos + ganadoPrueba6;
+        aprobadas = aprobadas + 1;
+    }
+    print("Ackermann: caso m=0 y rama n=0 | cumple=" + cumplePrueba6 + " | puntos=" + ganadoPrueba6 + "/0.5");
+
+    int ackDosDos = ackermann(2, 2);
+    int ackDosTres = ackermann(2, 3);
+    int ackTresUno = ackermann(3, 1);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 1 puntos.
+    bool cumplePrueba7 = ackDosDos == 7 && ackDosTres == 9 && ackTresUno == 13;
+    print("  ackermann(2,2) | esperado=7 | observado=" + (ackDosDos));
+    print("  ackermann(2,3) | esperado=9 | observado=" + (ackDosTres));
+    print("  ackermann(3,1) | esperado=13 | observado=" + (ackTresUno));
+    float ganadoPrueba7 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba7) {
+        ganadoPrueba7 = 1.0;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba7;
+        puntos = puntos + ganadoPrueba7;
+        aprobadas = aprobadas + 1;
+    }
+    print("Ackermann: recursion anidada y dos parametros | cumple=" + cumplePrueba7 + " | puntos=" + ganadoPrueba7 + "/1");
+
+    int ackTresDos = ackermann(3, 2);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.5 puntos.
+    bool cumplePrueba8 = ackTresDos == 29;
+    print("  ackermann(3,2) | esperado=29 | observado=" + (ackTresDos));
+    float ganadoPrueba8 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba8) {
+        ganadoPrueba8 = 0.5;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba8;
+        puntos = puntos + ganadoPrueba8;
+        aprobadas = aprobadas + 1;
+    }
+    print("Ackermann: retorno de una llamada anidada adicional | cumple=" + cumplePrueba8 + " | puntos=" + ganadoPrueba8 + "/0.5");
+
+    int mcdBase = mcd(7, 0);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.25 puntos.
+    bool cumplePrueba9 = mcdBase == 7;
+    print("  mcd(7,0) | esperado=7 | observado=" + (mcdBase));
+    float ganadoPrueba9 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba9) {
+        ganadoPrueba9 = 0.25;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba9;
+        puntos = puntos + ganadoPrueba9;
+        aprobadas = aprobadas + 1;
+    }
+    print("Euclides: caso base sin calcular modulo entre cero | cumple=" + cumplePrueba9 + " | puntos=" + ganadoPrueba9 + "/0.25");
+
+    int mcdDirecto = mcd(48, 18);
+    int mcdInvertido = mcd(18, 48);
+    int mcdCoprimos = mcd(35, 64);
+
+    // Funciones recursivas: llamadas, caso base y retorno: 0.75 puntos.
+    bool cumplePrueba10 = mcdDirecto == 6 && mcdInvertido == 6 && mcdCoprimos == 1;
+    print("  mcd(48,18) | esperado=6 | observado=" + (mcdDirecto));
+    print("  mcd(18,48) | esperado=6 | observado=" + (mcdInvertido));
+    print("  mcd(35,64) | esperado=1 | observado=" + (mcdCoprimos));
+    float ganadoPrueba10 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba10) {
+        ganadoPrueba10 = 0.75;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoPrueba10;
+        puntos = puntos + ganadoPrueba10;
+        aprobadas = aprobadas + 1;
+    }
+    print("Euclides: modulo y cambio de parametros | cumple=" + cumplePrueba10 + " | puntos=" + ganadoPrueba10 + "/0.75");
+
+    // Los resultados no quedan aislados: definen replicas de servicios reales simulados.
+    replicasApi = fibonacci(5);
+    replicasTrabajador = ackermann(2, 2);
+    print("PLAN: replicas API = " + replicasApi + "; replicas trabajador = " + replicasTrabajador);
+
+    // BASES DE DATOS Y PREPARACION ACUMULATIVA
+    print("--- BASES DE DATOS Y PREPARACION ACUMULATIVA ---");
+
+    database aliasCentral = central;
+
+    // Recurso database y sus propiedades: 1.5 puntos.
+    bool cumplePrueba11 = aliasCentral == central && central.engine == "postgresql" && central.version == "16" && central.port == 5432 && auditoria.engine == "mysql" && auditoria.version == "8.0" && auditoria.port == 3306;
+    print("  central.engine | esperado=postgresql | observado=" + (central.engine));
+    print("  central.version | esperado=16 | observado=" + (central.version));
+    print("  auditoria.engine | esperado=mysql | observado=" + (auditoria.engine));
+    print("  auditoria.version | esperado=8.0 | observado=" + (auditoria.version));
+    float ganadoPrueba11 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba11) {
+        ganadoPrueba11 = 1.5;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoPrueba11;
+        puntos = puntos + ganadoPrueba11;
+        aprobadas = aprobadas + 1;
+    }
+    print("Bases de datos, referencias y propiedades | cumple=" + cumplePrueba11 + " | puntos=" + ganadoPrueba11 + "/1.5");
+
+    run arranque;
+
+    // Recurso database y sus propiedades: 1 puntos.
+    bool cumplePrueba12 = basesIniciadas == 2 && central.status == "running" && status(auditoria) == "running";
+    print("  basesIniciadas | esperado=2 | observado=" + (basesIniciadas));
+    print("  central.status | esperado=running | observado=" + (central.status));
+    print("  auditoria.status | esperado=running | observado=" + (auditoria.status));
+    float ganadoPrueba12 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba12) {
+        ganadoPrueba12 = 1.0;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoPrueba12;
+        puntos = puntos + ganadoPrueba12;
+        aprobadas = aprobadas + 1;
+    }
+    print("While inicia las bases usadas por los servicios | cumple=" + cumplePrueba12 + " | puntos=" + ganadoPrueba12 + "/1");
+
+    bool paroAuditoria = stop(auditoria);
+    string estadoAuditoriaDetenida = auditoria.status;
+
+    // Recurso database y sus propiedades: 1 puntos.
+    bool cumplePrueba13 = paroAuditoria && estadoAuditoriaDetenida == "stopped";
+    print("  estadoAuditoriaDetenida | esperado=stopped | observado=" + (estadoAuditoriaDetenida));
+    float ganadoPrueba13 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba13) {
+        ganadoPrueba13 = 1.0;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoPrueba13;
+        puntos = puntos + ganadoPrueba13;
+        aprobadas = aprobadas + 1;
+    }
+    print("Stop de database antes del despliegue | cumple=" + cumplePrueba13 + " | puntos=" + ganadoPrueba13 + "/1");
+
+    start(auditoria);
+
+    // DEPENDENCIAS Y DESPLIEGUE DESDE UNA TAREA
+    print("--- DEPENDENCIAS Y DESPLIEGUE DESDE UNA TAREA ---");
+
+    // Dependencias dependsOn y despliegue con recursos activos: 2 puntos.
+    bool cumplePrueba14 = length(api.dependsOn) == 1 && api.dependsOn[0] == central && length(trabajador.dependsOn) == 1 && trabajador.dependsOn[0] == auditoria;
+    print("  api.dependsOn[0] == central | esperado=true | observado=" + (api.dependsOn[0] == central));
+    print("  trabajador.dependsOn[0] == auditoria | esperado=true | observado=" + (trabajador.dependsOn[0] == auditoria));
+    float ganadoPrueba14 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba14) {
+        ganadoPrueba14 = 2.0;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrueba14;
+        puntos = puntos + ganadoPrueba14;
+        aprobadas = aprobadas + 1;
+    }
+    print("Arreglos dependsOn enlazan recursos existentes | cumple=" + cumplePrueba14 + " | puntos=" + ganadoPrueba14 + "/2");
+
+    // Dependencias dependsOn y despliegue con recursos activos: 1 puntos.
+    bool cumplePrueba15 = equiposIniciados == 2 && basesIniciadas == 2 && paquetesPreparados == 6 && principal.status == "running" && procesamiento.status == "running" && central.status == "running" && auditoria.status == "running";
+    print("  equiposIniciados | esperado=2 | observado=" + (equiposIniciados));
+    print("  paquetesPreparados | esperado=6 | observado=" + (paquetesPreparados));
+    print("  traza | esperado=arranque; | observado=" + (traza));
+    float ganadoPrueba15 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba15) {
+        ganadoPrueba15 = 1.0;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrueba15;
+        puntos = puntos + ganadoPrueba15;
+        aprobadas = aprobadas + 1;
+    }
+    print("Preparacion con while, for, funciones, break y continue | cumple=" + cumplePrueba15 + " | puntos=" + ganadoPrueba15 + "/1");
+
+    run despliegue;
+
+    // Dependencias dependsOn y despliegue con recursos activos: 3 puntos.
+    bool cumplePrueba16 = desplegados == 2 && api.status == "running" && trabajador.status == "running" && api.host == principal && trabajador.host == procesamiento;
+    print("  desplegados | esperado=2 | observado=" + (desplegados));
+    print("  api.host == principal | esperado=true | observado=" + (api.host == principal));
+    print("  trabajador.host == procesamiento | esperado=true | observado=" + (trabajador.host == procesamiento));
+    float ganadoPrueba16 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba16) {
+        ganadoPrueba16 = 3.0;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrueba16;
+        puntos = puntos + ganadoPrueba16;
+        aprobadas = aprobadas + 1;
+    }
+    print("For y funcion booleana despliegan las dos aplicaciones | cumple=" + cumplePrueba16 + " | puntos=" + ganadoPrueba16 + "/3");
+
+    // LECTURA ENCADENADA DE LOS RECURSOS DESPLEGADOS
+    print("--- LECTURA ENCADENADA DE LOS RECURSOS DESPLEGADOS ---");
+
+    // Lectura avanzada de propiedades: host, packages y dependsOn: 1.5 puntos.
+    bool cumplePrueba17 = api.host.os == "ubuntu" && api.host.memory == 8 && trabajador.host.cpu == 8 && trabajador.host.memory == 16;
+    print("  api.host.memory | esperado=8 | observado=" + (api.host.memory));
+    print("  trabajador.host.memory | esperado=16 | observado=" + (trabajador.host.memory));
+    float ganadoPrueba17 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba17) {
+        ganadoPrueba17 = 1.5;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba17;
+        puntos = puntos + ganadoPrueba17;
+        aprobadas = aprobadas + 1;
+    }
+    print("Host enlaza las propiedades de cada servidor | cumple=" + cumplePrueba17 + " | puntos=" + ganadoPrueba17 + "/1.5");
+
+    bool paquetesCorrectos = true;
+    for (int i = 0; i < length(aplicaciones); i = i + 1) {
+        server hostActual = aplicaciones[i].host;
+        if (length(hostActual.packages) != 3 || !contienePaquete(hostActual, "docker")
+            || !contienePaquete(hostActual, "git") || !contienePaquete(hostActual, "nginx")) {
+            paquetesCorrectos = false;
+        }
+    }
+
+    // Lectura avanzada de propiedades: host, packages y dependsOn: 2 puntos.
+    bool cumplePrueba18 = paquetesCorrectos && length(api.host.packages) == 3 && length(trabajador.host.packages) == 3;
+    print("  paquetesCorrectos | esperado=true | observado=" + (paquetesCorrectos));
+    print("  length(api.host.packages) | esperado=3 | observado=" + (length(api.host.packages)));
+    print("  length(trabajador.host.packages) | esperado=3 | observado=" + (length(trabajador.host.packages)));
+    float ganadoPrueba18 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba18) {
+        ganadoPrueba18 = 2.0;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba18;
+        puntos = puntos + ganadoPrueba18;
+        aprobadas = aprobadas + 1;
+    }
+    print("For y funciones consultan packages a traves de host | cumple=" + cumplePrueba18 + " | puntos=" + ganadoPrueba18 + "/2");
+
+    // Lectura avanzada de propiedades: host, packages y dependsOn: 2 puntos.
+    bool cumplePrueba19 = api.dependsOn[0].status == "running" && trabajador.dependsOn[0].status == "running" && api.dependsOn[0].port == 5432;
+    print("  api.dependsOn[0].status | esperado=running | observado=" + (api.dependsOn[0].status));
+    print("  trabajador.dependsOn[0].status | esperado=running | observado=" + (trabajador.dependsOn[0].status));
+    float ganadoPrueba19 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba19) {
+        ganadoPrueba19 = 2.0;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoPrueba19;
+        puntos = puntos + ganadoPrueba19;
+        aprobadas = aprobadas + 1;
+    }
+    print("Indice de dependsOn seguido de propiedad | cumple=" + cumplePrueba19 + " | puntos=" + ganadoPrueba19 + "/2");
+
+    // ACCIONES Y CAMBIOS DE ESTADO EN EL MISMO ESCENARIO
+    print("--- ACCIONES Y CAMBIOS DE ESTADO EN EL MISMO ESCENARIO ---");
+
+    run reiniciarRecursos;
+
+    // Acciones: restart, connect y disconnect: 1.5 puntos.
+    bool cumplePrueba20 = reinicioPrincipal && reinicioCentral && reinicioApi && principal.status == "running" && central.status == "running" && api.status == "running";
+    print("  reinicioPrincipal | esperado=true | observado=" + (reinicioPrincipal));
+    print("  reinicioCentral | esperado=true | observado=" + (reinicioCentral));
+    print("  reinicioApi | esperado=true | observado=" + (reinicioApi));
+    float ganadoPrueba20 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba20) {
+        ganadoPrueba20 = 1.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba20;
+        puntos = puntos + ganadoPrueba20;
+        aprobadas = aprobadas + 1;
+    }
+    print("Restart de server, database y service desde task | cumple=" + cumplePrueba20 + " | puntos=" + ganadoPrueba20 + "/1.5");
+
+    run conectarAplicaciones;
+
+    // Acciones: restart, connect y disconnect: 1.5 puntos.
+    bool cumplePrueba21 = conectados == 2;
+    print("  conexiones con retorno true | esperado=2 | observado=" + (conectados));
+    float ganadoPrueba21 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba21) {
+        ganadoPrueba21 = 1.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba21;
+        puntos = puntos + ganadoPrueba21;
+        aprobadas = aprobadas + 1;
+    }
+    print("Connect de cada servicio con su dependencia activa | cumple=" + cumplePrueba21 + " | puntos=" + ganadoPrueba21 + "/1.5");
+
+    run actualizarPaquetes;
+
+    // Ejecucion secuencial de acciones y actualizacion de estados: 2 puntos.
+    bool cumplePrueba22 = instaloActualizacion && retiroGit && cantidadAntes == 3 && cantidadInstalada == 4 && cantidadRetirada == 3 && !contienePaquete(principal, "git") && contienePaquete(principal, "curl");
+    print("  cantidadAntes | esperado=3 | observado=" + (cantidadAntes));
+    print("  cantidadInstalada | esperado=4 | observado=" + (cantidadInstalada));
+    print("  cantidadRetirada | esperado=3 | observado=" + (cantidadRetirada));
+    float ganadoPrueba22 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba22) {
+        ganadoPrueba22 = 2.0;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba22;
+        puntos = puntos + ganadoPrueba22;
+        aprobadas = aprobadas + 1;
+    }
+    print("Snapshots entre install y uninstall en el host desplegado | cumple=" + cumplePrueba22 + " | puntos=" + ganadoPrueba22 + "/2");
+
+    run escalarAplicaciones;
+
+    // Ejecucion secuencial de acciones y actualizacion de estados: 3 puntos.
+    bool cumplePrueba23 = escalados == 2 && replicasApiAntes == 2 && replicasTrabajadorAntes == 1 && api.replicas == 5 && trabajador.replicas == 7 && api.host == principal && trabajador.host == procesamiento;
+    print("  replicasApiAntes | esperado=2 | observado=" + (replicasApiAntes));
+    print("  api.replicas | esperado=5 | observado=" + (api.replicas));
+    print("  replicasTrabajadorAntes | esperado=1 | observado=" + (replicasTrabajadorAntes));
+    print("  trabajador.replicas | esperado=7 | observado=" + (trabajador.replicas));
+    float ganadoPrueba23 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba23) {
+        ganadoPrueba23 = 3.0;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba23;
+        puntos = puntos + ganadoPrueba23;
+        aprobadas = aprobadas + 1;
+    }
+    print("Scale usa los resultados de Fibonacci y Ackermann | cumple=" + cumplePrueba23 + " | puntos=" + ganadoPrueba23 + "/3");
+
+    run desconectarAplicaciones;
+
+    // Acciones: restart, connect y disconnect: 1.5 puntos.
+    bool cumplePrueba24 = desconectados == 2;
+    print("  desconexiones con retorno true | esperado=2 | observado=" + (desconectados));
+    float ganadoPrueba24 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba24) {
+        ganadoPrueba24 = 1.5;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrueba24;
+        puntos = puntos + ganadoPrueba24;
+        aprobadas = aprobadas + 1;
+    }
+    print("Disconnect retira las dos conexiones existentes | cumple=" + cumplePrueba24 + " | puntos=" + ganadoPrueba24 + "/1.5");
+
+    run reanudarServicio;
+
+    // Ejecucion secuencial de acciones y actualizacion de estados: 2 puntos.
+    bool cumplePrueba25 = estadoDetenido == "stopped" && estadoReanudado == "running" && pasos == 8 && traza == "arranque;despliegue;reinicio;conectar;actualizar;escalar;desconectar;reanudar;";
+    print("  estadoDetenido | esperado=stopped | observado=" + (estadoDetenido));
+    print("  estadoReanudado | esperado=running | observado=" + (estadoReanudado));
+    print("  pasos | esperado=8 | observado=" + (pasos));
+    print("  traza | esperado=arranque;despliegue;reinicio;conectar;actualizar;escalar;desconectar;reanudar; | observado=" + (traza));
+    float ganadoPrueba25 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba25) {
+        ganadoPrueba25 = 2.0;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoPrueba25;
+        puntos = puntos + ganadoPrueba25;
+        aprobadas = aprobadas + 1;
+    }
+    print("Stop y start conservan la secuencia de tareas | cumple=" + cumplePrueba25 + " | puntos=" + ganadoPrueba25 + "/2");
+
+    // EXPRESIONES COMBINADAS SOBRE EL RESULTADO DEL DESPLIEGUE
+    print("--- EXPRESIONES COMBINADAS SOBRE EL RESULTADO DEL DESPLIEGUE ---");
+
+    int resultadoAnidado = sumar(doble(fibonacci(4)), mcd(12, 8));
+
+    // Expresiones compuestas, funciones anidadas y acceso a arreglos: 2 puntos.
+    bool cumplePrueba26 = resultadoAnidado == 10 && alcanza(resultadoAnidado, principal.cpu + 6);
+    print("  sumar(doble(fibonacci(4)), mcd(12,8)) | esperado=10 | observado=" + (resultadoAnidado));
+    float ganadoPrueba26 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba26) {
+        ganadoPrueba26 = 2.0;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba26;
+        puntos = puntos + ganadoPrueba26;
+        aprobadas = aprobadas + 1;
+    }
+    print("Llamadas anidadas combinan resultados recursivos | cumple=" + cumplePrueba26 + " | puntos=" + ganadoPrueba26 + "/2");
+
+    bool estadoCompuesto = (api.host.cpu * 2 + api.host.memory >= 16) && (api.status == "running" || false) && !(trabajador.replicas < 7) && api.dependsOn[0].status == "running";
+
+    // Expresiones compuestas, funciones anidadas y acceso a arreglos: 2 puntos.
+    bool cumplePrueba27 = estadoCompuesto;
+    print("  api.host.cpu * 2 + api.host.memory | esperado=16 | observado=" + (api.host.cpu * 2 + api.host.memory));
+    print("  estadoCompuesto | esperado=true | observado=" + (estadoCompuesto));
+    float ganadoPrueba27 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba27) {
+        ganadoPrueba27 = 2.0;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba27;
+        puntos = puntos + ganadoPrueba27;
+        aprobadas = aprobadas + 1;
+    }
+    print("Aritmetica, comparaciones y booleanos sobre propiedades | cumple=" + cumplePrueba27 + " | puntos=" + ganadoPrueba27 + "/2");
+
+    int indicePaquete = mcd(6, 4) - 1;
+    string paqueteElegido = paquetesExtra[indicePaquete];
+    bool instaladoExtra = install(procesamiento, paqueteElegido);
+
+    // Expresiones compuestas, funciones anidadas y acceso a arreglos: 1.5 puntos.
+    bool cumplePrueba28 = indicePaquete == 1 && paqueteElegido == "htop" && instaladoExtra && length(procesamiento.packages) == 4 && contienePaquete(procesamiento, "htop");
+    print("  indicePaquete | esperado=1 | observado=" + (indicePaquete));
+    print("  paqueteElegido | esperado=htop | observado=" + (paqueteElegido));
+    print("  paquetes en procesamiento | esperado=4 | observado=" + (length(procesamiento.packages)));
+    float ganadoPrueba28 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba28) {
+        ganadoPrueba28 = 1.5;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba28;
+        puntos = puntos + ganadoPrueba28;
+        aprobadas = aprobadas + 1;
+    }
+    print("Resultado de funcion como indice y argumento de install | cumple=" + cumplePrueba28 + " | puntos=" + ganadoPrueba28 + "/1.5");
+
+    // Expresiones compuestas, funciones anidadas y acceso a arreglos: 1 puntos.
+    bool cumplePrueba29 = alcanza(length(trabajador.host.packages), 4) && status(api) == "running" && paquetesExtra[length(paquetesExtra) - 1] == "jq";
+    print("  length(trabajador.host.packages) | esperado=4 | observado=" + (length(trabajador.host.packages)));
+    print("  status(api) | esperado=running | observado=" + (status(api)));
+    print("  ultimo paquete extra | esperado=jq | observado=" + (paquetesExtra[length(paquetesExtra) - 1]));
+    float ganadoPrueba29 = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrueba29) {
+        ganadoPrueba29 = 1.0;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoPrueba29;
+        puntos = puntos + ganadoPrueba29;
+        aprobadas = aprobadas + 1;
+    }
+    print("Nativas e indices calculados en una expresion | cumple=" + cumplePrueba29 + " | puntos=" + ganadoPrueba29 + "/1");
+
+    print("================================================");
+    print("RESUMEN AVANZADO");
+    print("PUNTAJE AUTOMATICO: " + puntos + "/39");
+    print("Comprobaciones aprobadas: " + aprobadas + "/" + comprobaciones);
+    print("TABLA FINAL - PUNTEO POR CRITERIO");
+    print("Criterio | Maximo de la hoja | Obtenido");
+
+    print("Recurso database y sus propiedades | 3.5 | " + puntajeCriterio1);
+
+    print("Dependencias dependsOn y despliegue con recursos activos | 6 | " + puntajeCriterio2);
+
+    print("Acciones: restart, connect y disconnect | 4.5 | " + puntajeCriterio3);
+
+    print("Lectura avanzada de propiedades: host, packages y dependsOn | 5.5 | " + puntajeCriterio4);
+
+    print("Ejecucion secuencial de acciones y actualizacion de estados | 7 | " + puntajeCriterio5);
+
+    print("Funciones recursivas: llamadas, caso base y retorno | 6 | " + puntajeCriterio6);
+
+    print("Errores lexicos y su identificacion | 3.5 | NO EVALUADO");
+    print("Errores sintacticos y recuperacion | 4.5 | NO EVALUADO");
+
+    print("Expresiones compuestas, funciones anidadas y acceso a arreglos | 6.5 | " + puntajeCriterio7);
+
+    print("TOTAL AUTOMATICO | 39 | " + puntos);
+
+    print("AVANZADO COMPLETO: 47; estos casos cubren 39; 8 de errores se evaluan aparte.");
+    print("Connect y disconnect: confirmar los cambios en la bitacora.");
+
+    print("FIN_AVANZADO_ACUMULATIVO");
+
+}

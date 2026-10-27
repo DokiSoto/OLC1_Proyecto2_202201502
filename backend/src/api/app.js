@@ -3,7 +3,7 @@ import cors from 'cors';
 import { Worker } from 'node:worker_threads';
 
 export const app = express();
-app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
+app.use(cors({ origin: ['http://localhost:5000', 'http://127.0.0.1:5000'] }));
 app.use(express.json({ limit: '1mb' }));
 app.get('/api/health', (request, response) => response.json({ success: true, message: 'AutoInfra esta disponible' }));
 

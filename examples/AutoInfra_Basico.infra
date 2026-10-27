@@ -1,0 +1,390 @@
+/*
+AUTOINFRA - SIMULACION DE CALIFICACION: BASICO
+*/
+server servidorBasico {
+    cpu = 2;
+    memory = 4;
+    disk = 50;
+    os = "ubuntu";
+}
+
+service servicioBasico {
+    port = 8080;
+    replicas = 1;
+}
+
+main {
+    float puntosBasico = 0.0;
+    int comprobaciones = 0;
+    int aprobadas = 0;
+    float puntajeCriterio1 = 0.0;
+    float puntajeCriterio2 = 0.0;
+    float puntajeCriterio3 = 0.0;
+    float puntajeCriterio4 = 0.0;
+    float puntajeCriterio5 = 0.0;
+    float puntajeCriterio6 = 0.0;
+    float puntajeCriterio7 = 0.0;
+    float puntajeCriterio8 = 0.0;
+
+    print("AUTOINFRA - ARCHIVO BASICO");
+    print("Pruebas validas. Puntaje automatico disponible: 10.");
+
+    // Estructura: main, comentarios e identificadores - 0.5 puntos.
+    print("--- Estructura: main, comentarios e identificadores ---");
+    // Comentario de una linea correctamente cerrado por el salto de linea.
+    /* Comentario de varias lineas.
+       Su contenido no forma parte del programa. */
+    int _nodo2 = 7;
+    int Nodo = 4;
+    int nodo = 5;
+    bool cumpleEstructura = _nodo2 == 7 && Nodo == 4 && nodo == 5;
+    print("  _nodo2 = [" + (_nodo2) + "]");
+    print("  Nodo = [" + (Nodo) + "]");
+    print("  nodo = [" + (nodo) + "]");
+    float ganadoEstructura = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleEstructura) {
+        ganadoEstructura = 0.5;
+        puntosBasico = puntosBasico + ganadoEstructura;
+        puntajeCriterio1 = puntajeCriterio1 + ganadoEstructura;
+        aprobadas = aprobadas + 1;
+    }
+    print("Identificadores y comentarios | cumple=" + cumpleEstructura + " | puntos=" + ganadoEstructura + "/0.5");
+
+    // Variables, tipos primitivos y valores por defecto - 1.5 puntos.
+    print("--- Variables, tipos primitivos y valores por defecto ---");
+    int entero = 7;
+    float decimal = 2.5;
+    string texto = "infra";
+    bool encendido = true;
+    bool apagado = false;
+    bool cumplePrimitivos = entero == 7 && decimal == 2.5 && texto == "infra" && encendido && !apagado;
+    print("  entero = [" + (entero) + "]");
+    print("  decimal = [" + (decimal) + "]");
+    print("  texto = [" + (texto) + "]");
+    print("  encendido = [" + (encendido) + "]");
+    print("  apagado = [" + (apagado) + "]");
+    float ganadoPrimitivos = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrimitivos) {
+        ganadoPrimitivos = 0.5;
+        puntosBasico = puntosBasico + ganadoPrimitivos;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoPrimitivos;
+        aprobadas = aprobadas + 1;
+    }
+    print("Primitivos y booleanos true/false | cumple=" + cumplePrimitivos + " | puntos=" + ganadoPrimitivos + "/0.5");
+
+    int enteroDefecto;
+    float decimalDefecto;
+    string textoDefecto;
+    bool booleanoDefecto;
+    bool cumpleDefectos = enteroDefecto == 0 && decimalDefecto == 0.0 && textoDefecto == "" && booleanoDefecto == false;
+    print("  enteroDefecto = [" + (enteroDefecto) + "]");
+    print("  decimalDefecto = [" + (decimalDefecto) + "]");
+    print("  textoDefecto = [" + (textoDefecto) + "]");
+    print("  booleanoDefecto = [" + (booleanoDefecto) + "]");
+    float ganadoDefectos = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleDefectos) {
+        ganadoDefectos = 0.5;
+        puntosBasico = puntosBasico + ganadoDefectos;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoDefectos;
+        aprobadas = aprobadas + 1;
+    }
+    print("Valores por defecto | cumple=" + cumpleDefectos + " | puntos=" + ganadoDefectos + "/0.5");
+
+    entero = 9;
+    decimal = 3;
+    texto = "nodo-" + entero;
+    encendido = false;
+    string comillas = "nombre: \"api\"";
+    string ruta = "infra\\config";
+    print("ESCAPES_INICIO\nA\tB\n" + comillas + "\n" + ruta + "\nESCAPES_FIN");
+    bool cumpleAsignaciones = entero == 9 && decimal == 3.0 && texto == "nodo-9" && encendido == false;
+    print("  entero = [" + (entero) + "]");
+    print("  decimal = [" + (decimal) + "]");
+    print("  texto = [" + (texto) + "]");
+    print("  encendido = [" + (encendido) + "]");
+    float ganadoAsignaciones = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleAsignaciones) {
+        ganadoAsignaciones = 0.5;
+        puntosBasico = puntosBasico + ganadoAsignaciones;
+        puntajeCriterio2 = puntajeCriterio2 + ganadoAsignaciones;
+        aprobadas = aprobadas + 1;
+    }
+    print("Asignacion y concatenacion | cumple=" + cumpleAsignaciones + " | puntos=" + ganadoAsignaciones + "/0.5");
+
+    // Operaciones aritmeticas y precedencia - 1.5 puntos.
+    print("--- Operaciones aritmeticas y precedencia ---");
+    int suma = 9 + 4;
+    int resta = 9 - 4;
+    int producto = 3 * 4;
+    int residuo = 17 % 5;
+    bool cumpleAritmeticaEntera = suma == 13 && resta == 5 && producto == 12 && residuo == 2;
+    print("  suma = [" + (suma) + "]");
+    print("  resta = [" + (resta) + "]");
+    print("  producto = [" + (producto) + "]");
+    print("  residuo = [" + (residuo) + "]");
+    float ganadoAritmeticaEntera = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleAritmeticaEntera) {
+        ganadoAritmeticaEntera = 0.5;
+        puntosBasico = puntosBasico + ganadoAritmeticaEntera;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoAritmeticaEntera;
+        aprobadas = aprobadas + 1;
+    }
+    print("Suma, resta, multiplicacion y modulo | cumple=" + cumpleAritmeticaEntera + " | puntos=" + ganadoAritmeticaEntera + "/0.5");
+
+    float cociente = 5 / 2;
+    float mezcla = 2.5 + 2;
+    int negativo = -5;
+    float negativoDecimal = -2.5;
+    bool cumpleDivision = cociente == 2.5 && mezcla == 4.5 && negativo == -5 && negativoDecimal == -2.5;
+    print("  cociente = [" + (cociente) + "]");
+    print("  mezcla = [" + (mezcla) + "]");
+    print("  negativo = [" + (negativo) + "]");
+    print("  negativoDecimal = [" + (negativoDecimal) + "]");
+    float ganadoDivision = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleDivision) {
+        ganadoDivision = 0.5;
+        puntosBasico = puntosBasico + ganadoDivision;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoDivision;
+        aprobadas = aprobadas + 1;
+    }
+    print("Division float, mezcla numerica y negacion | cumple=" + cumpleDivision + " | puntos=" + ganadoDivision + "/0.5");
+
+    int precedencia = 2 + 3 * 4;
+    int agrupacion = (2 + 3) * 4;
+    int asociacion = 20 - 5 - 3;
+    float divisionAsociada = 20 / 2 / 2;
+    bool cumplePrecedencia = precedencia == 14 && agrupacion == 20 && asociacion == 12 && divisionAsociada == 5.0;
+    print("  precedencia = [" + (precedencia) + "]");
+    print("  agrupacion = [" + (agrupacion) + "]");
+    print("  asociacion = [" + (asociacion) + "]");
+    print("  divisionAsociada = [" + (divisionAsociada) + "]");
+    float ganadoPrecedencia = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumplePrecedencia) {
+        ganadoPrecedencia = 0.5;
+        puntosBasico = puntosBasico + ganadoPrecedencia;
+        puntajeCriterio3 = puntajeCriterio3 + ganadoPrecedencia;
+        aprobadas = aprobadas + 1;
+    }
+    print("Precedencia, parentesis y asociatividad | cumple=" + cumplePrecedencia + " | puntos=" + ganadoPrecedencia + "/0.5");
+
+    // Operaciones relacionales - 1 puntos.
+    print("--- Operaciones relacionales ---");
+    bool cumpleRelacionesVerdaderas = 5 > 3 && 3 < 5 && 5 >= 5 && 3 <= 3 && 5 == 5.0 && 5 != 3;
+    print("  5 > 3 = [" + (5 > 3) + "]");
+    print("  3 < 5 = [" + (3 < 5) + "]");
+    print("  5 >= 5 = [" + (5 >= 5) + "]");
+    print("  3 <= 3 = [" + (3 <= 3) + "]");
+    print("  5 == 5.0 = [" + (5 == 5.0) + "]");
+    print("  5 != 3 = [" + (5 != 3) + "]");
+    float ganadoRelacionesVerdaderas = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleRelacionesVerdaderas) {
+        ganadoRelacionesVerdaderas = 0.5;
+        puntosBasico = puntosBasico + ganadoRelacionesVerdaderas;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoRelacionesVerdaderas;
+        aprobadas = aprobadas + 1;
+    }
+    print("Comparaciones numericas verdaderas | cumple=" + cumpleRelacionesVerdaderas + " | puntos=" + ganadoRelacionesVerdaderas + "/0.5");
+
+    bool cumpleRelacionesFalsas = !(3 > 5) && !(5 < 3) && !(3 >= 5) && !(5 <= 3) && !(5 == 3) && !(5 != 5) && "api" == "api" && "api" != "db" && true != false;
+    print("  3 > 5 = [" + (3 > 5) + "]");
+    print("  5 < 3 = [" + (5 < 3) + "]");
+    print("  3 >= 5 = [" + (3 >= 5) + "]");
+    print("  5 <= 3 = [" + (5 <= 3) + "]");
+    print("  5 == 3 = [" + (5 == 3) + "]");
+    print("  5 != 5 = [" + (5 != 5) + "]");
+    float ganadoRelacionesFalsas = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleRelacionesFalsas) {
+        ganadoRelacionesFalsas = 0.5;
+        puntosBasico = puntosBasico + ganadoRelacionesFalsas;
+        puntajeCriterio4 = puntajeCriterio4 + ganadoRelacionesFalsas;
+        aprobadas = aprobadas + 1;
+    }
+    print("Comparaciones falsas, strings y bool | cumple=" + cumpleRelacionesFalsas + " | puntos=" + ganadoRelacionesFalsas + "/0.5");
+
+    // Operaciones logicas - 1 puntos.
+    print("--- Operaciones logicas ---");
+    bool yVerdadero = true && true;
+    bool yFalso = true && false;
+    bool oVerdadero = false || true;
+    bool oFalso = false || false;
+    bool cumpleLogicaBasica = yVerdadero && !yFalso && oVerdadero && !oFalso && !false && !!true;
+    print("  yVerdadero = [" + (yVerdadero) + "]");
+    print("  yFalso = [" + (yFalso) + "]");
+    print("  oVerdadero = [" + (oVerdadero) + "]");
+    print("  oFalso = [" + (oFalso) + "]");
+    float ganadoLogicaBasica = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleLogicaBasica) {
+        ganadoLogicaBasica = 0.5;
+        puntosBasico = puntosBasico + ganadoLogicaBasica;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoLogicaBasica;
+        aprobadas = aprobadas + 1;
+    }
+    print("AND, OR y NOT | cumple=" + cumpleLogicaBasica + " | puntos=" + ganadoLogicaBasica + "/0.5");
+
+    bool ordenLogico = true || false && false;
+    bool agrupacionLogica = (true || false) && false;
+    bool negacionLogica = !(true && false);
+    bool cumpleLogicaPrecedencia = ordenLogico && !agrupacionLogica && negacionLogica;
+    print("  ordenLogico = [" + (ordenLogico) + "]");
+    print("  agrupacionLogica = [" + (agrupacionLogica) + "]");
+    print("  negacionLogica = [" + (negacionLogica) + "]");
+    float ganadoLogicaPrecedencia = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleLogicaPrecedencia) {
+        ganadoLogicaPrecedencia = 0.5;
+        puntosBasico = puntosBasico + ganadoLogicaPrecedencia;
+        puntajeCriterio5 = puntajeCriterio5 + ganadoLogicaPrecedencia;
+        aprobadas = aprobadas + 1;
+    }
+    print("Precedencia logica y agrupacion | cumple=" + cumpleLogicaPrecedencia + " | puntos=" + ganadoLogicaPrecedencia + "/0.5");
+
+    // Condicionales if / else y anidamientos - 1.5 puntos.
+    print("--- Condicionales if / else y anidamientos ---");
+    int ramaVerdadera = 0;
+    if (true) {
+        ramaVerdadera = 1;
+    } else {
+        ramaVerdadera = 2;
+    }
+    bool cumpleIfVerdadero = ramaVerdadera == 1;
+    print("  ramaVerdadera = [" + (ramaVerdadera) + "]");
+    float ganadoIfVerdadero = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleIfVerdadero) {
+        ganadoIfVerdadero = 0.5;
+        puntosBasico = puntosBasico + ganadoIfVerdadero;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoIfVerdadero;
+        aprobadas = aprobadas + 1;
+    }
+    print("Rama if verdadera | cumple=" + cumpleIfVerdadero + " | puntos=" + ganadoIfVerdadero + "/0.5");
+
+    int ramaFalsa = 0;
+    if (false) {
+        ramaFalsa = 1;
+    } else {
+        ramaFalsa = 2;
+    }
+    bool cumpleIfFalso = ramaFalsa == 2;
+    print("  ramaFalsa = [" + (ramaFalsa) + "]");
+    float ganadoIfFalso = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleIfFalso) {
+        ganadoIfFalso = 0.5;
+        puntosBasico = puntosBasico + ganadoIfFalso;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoIfFalso;
+        aprobadas = aprobadas + 1;
+    }
+    print("Rama else | cumple=" + cumpleIfFalso + " | puntos=" + ganadoIfFalso + "/0.5");
+
+    int ramaAnidada = 0;
+    if (false) {
+        ramaAnidada = 1;
+    } else if (true) {
+        if (2 < 3) {
+            ramaAnidada = 3;
+        }
+    } else {
+        ramaAnidada = 4;
+    }
+    bool cumpleIfAnidado = ramaAnidada == 3;
+    print("  ramaAnidada = [" + (ramaAnidada) + "]");
+    float ganadoIfAnidado = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleIfAnidado) {
+        ganadoIfAnidado = 0.5;
+        puntosBasico = puntosBasico + ganadoIfAnidado;
+        puntajeCriterio6 = puntajeCriterio6 + ganadoIfAnidado;
+        aprobadas = aprobadas + 1;
+    }
+    print("If anidado y else if | cumple=" + cumpleIfAnidado + " | puntos=" + ganadoIfAnidado + "/0.5");
+
+    // Declaracion de recursos server y service - 2 puntos.
+    print("--- Declaracion de recursos server y service ---");
+    bool cumpleServer = servidorBasico.cpu == 2 && servidorBasico.memory == 4 && servidorBasico.disk == 50 && servidorBasico.os == "ubuntu" && servidorBasico.status == "stopped";
+    print("  servidorBasico.cpu = [" + (servidorBasico.cpu) + "]");
+    print("  servidorBasico.memory = [" + (servidorBasico.memory) + "]");
+    print("  servidorBasico.disk = [" + (servidorBasico.disk) + "]");
+    print("  servidorBasico.os = [" + (servidorBasico.os) + "]");
+    print("  servidorBasico.status = [" + (servidorBasico.status) + "]");
+    float ganadoServer = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleServer) {
+        ganadoServer = 1.0;
+        puntosBasico = puntosBasico + ganadoServer;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoServer;
+        aprobadas = aprobadas + 1;
+    }
+    print("Recurso server | cumple=" + cumpleServer + " | puntos=" + ganadoServer + "/1");
+
+    bool cumpleService = servicioBasico.port == 8080 && servicioBasico.replicas == 1;
+    print("  servicioBasico.port = [" + (servicioBasico.port) + "]");
+    print("  servicioBasico.replicas = [" + (servicioBasico.replicas) + "]");
+    float ganadoService = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleService) {
+        ganadoService = 1.0;
+        puntosBasico = puntosBasico + ganadoService;
+        puntajeCriterio7 = puntajeCriterio7 + ganadoService;
+        aprobadas = aprobadas + 1;
+    }
+    print("Recurso service | cumple=" + cumpleService + " | puntos=" + ganadoService + "/1");
+
+    // Funciones nativas: start, stop, status y print - 1 puntos.
+    print("--- Funciones nativas: start, stop, status y print ---");
+    print("IMPRESION_MULTIPLE", true, 7, 2.5);
+    bool inicioBasico = start(servidorBasico);
+    bool cumpleStart = inicioBasico && status(servidorBasico) == "running";
+    print("  inicioBasico = [" + (inicioBasico) + "]");
+    print("  status(servidorBasico) = [" + (status(servidorBasico)) + "]");
+    float ganadoStart = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleStart) {
+        ganadoStart = 0.5;
+        puntosBasico = puntosBasico + ganadoStart;
+        puntajeCriterio8 = puntajeCriterio8 + ganadoStart;
+        aprobadas = aprobadas + 1;
+    }
+    print("Start y consulta de status | cumple=" + cumpleStart + " | puntos=" + ganadoStart + "/0.5");
+
+    bool paroBasico = stop(servidorBasico);
+    bool cumpleStop = paroBasico && status(servidorBasico) == "stopped";
+    print("  paroBasico = [" + (paroBasico) + "]");
+    print("  status(servidorBasico) = [" + (status(servidorBasico)) + "]");
+    float ganadoStop = 0.0;
+    comprobaciones = comprobaciones + 1;
+    if (cumpleStop) {
+        ganadoStop = 0.5;
+        puntosBasico = puntosBasico + ganadoStop;
+        puntajeCriterio8 = puntajeCriterio8 + ganadoStop;
+        aprobadas = aprobadas + 1;
+    }
+    print("Stop y consulta de status | cumple=" + cumpleStop + " | puntos=" + ganadoStop + "/0.5");
+
+
+    print("================================================");
+    print("RESUMEN BASICO");
+    print("PUNTAJE AUTOMATICO: " + puntosBasico + "/10");
+    print("Comprobaciones aprobadas: " + aprobadas + "/" + comprobaciones);
+    print("FIN_BASICO");
+    print("TABLA FINAL - PUNTEO POR CRITERIO");
+    print("Criterio | Maximo de la hoja | Obtenido");
+    print("Estructura: main, comentarios e identificadores | 0.5 | " + puntajeCriterio1);
+    print("Variables, tipos primitivos y valores por defecto | 1.5 | " + puntajeCriterio2);
+    print("Operaciones aritmeticas y precedencia | 1.5 | " + puntajeCriterio3);
+    print("Operaciones relacionales | 1 | " + puntajeCriterio4);
+    print("Operaciones logicas | 1 | " + puntajeCriterio5);
+    print("Condicionales if / else y anidamientos | 1.5 | " + puntajeCriterio6);
+    print("Declaracion de recursos server y service | 2 | " + puntajeCriterio7);
+    print("Funciones nativas: start, stop, status y print | 1 | " + puntajeCriterio8);
+    print("TOTAL AUTOMATICO | 10 | " + puntosBasico);
+}
