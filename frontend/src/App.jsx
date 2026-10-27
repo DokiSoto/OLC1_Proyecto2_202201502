@@ -156,4 +156,3 @@ export default function App() {
     <footer>AutoInfra · Cada ejecución comienza con un entorno nuevo.</footer>
   </main>;
 }
-//cambiar 
