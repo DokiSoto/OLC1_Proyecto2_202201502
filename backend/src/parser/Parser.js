@@ -1,9 +1,11 @@
 import * as N from '../ast/Nodes.js';
 
-
+//Creacion de la clase Parser
 const TYPES = new Set(['int', 'float', 'string', 'bool', 'server', 'service', 'database']);
 const RESOURCES = new Set(['server', 'service', 'database']);
 const LEVELS = [['||'], ['&&'], ['==', '!='], ['<', '<=', '>', '>='], ['+', '-'], ['*', '/', '%']];
+
+//Creacion de la clase ParseFailure
 class ParseFailure extends Error {}
 
 export class Parser {
@@ -24,33 +26,26 @@ export class Parser {
     if (this.index === start && !this.is('EOF') && !this.is('}')) this.advance();
     while (!this.is('EOF') && !this.is('}')) {
       if (this.match(';')) return;
-
-      if (TYPES.has(this.peek().type) || ['main', 'function', 'task', 'if', 'while', 'for', 'return', 'run'].includes(this.peek().type)) return;
+      if (TYPES.has(this.peek().type) || ['main', 'function', 'task', 'if', 'while', 'for', 'return', 'run', 'break', 'continue', 'IDENTIFIER', '{'].includes(this.peek().type)) return;
       this.advance();
     }
   }
-
-parse() {
-    const declarations = []; 
-    let main = null;
+  
+  parse() {
+    const declarations = []; let main = null;
     while (!this.is('EOF')) {
       const start = this.index;
       try {
         if (this.match('main')) {
           const block = this.block();
-
-
           if (main) this.fail('Debe existir exactamente un bloque main.', block);
           main = block;
-
         } else {
           if (main) this.fail('Las declaraciones globales deben estar antes de main.');
           declarations.push(this.declaration());
         }
-
       } catch (error) {
-        if (!(error instanceof ParseFailure)) 
-            throw error;
+        if (!(error instanceof ParseFailure)) throw error;
         this.synchronize(start);
         if (this.is('}')) this.advance();
       }
@@ -59,16 +54,16 @@ parse() {
     if (!main) this.errors.push({ type: 'Sintáctico', code: 'SYN-002', description: 'Falta el bloque main.', line: 1, column: 1 });
     return { ast: main ? new N.Program(declarations, main, this.tokens[0]) : null, errors: this.errors };
   }
-  type() {
+  type(allowVoid = false) {
     const token = this.advance();
-    if (!TYPES.has(token.type) && token.type !== 'void') this.fail('Se esperaba un tipo.', token);
+    if (!TYPES.has(token.type) && !(allowVoid && token.type === 'void')) this.fail('Se esperaba un tipo.', token);
     let type = token.type;
-    if (this.match('[')) { this.expect(']'); type += '[]'; }
+    if (type !== 'void' && this.match('[')) { this.expect(']'); type += '[]'; }
     return type;
   }
 
+  //Creacion de la funcion declaration
   declaration() {
-
     const loc = this.peek();
     if (this.match('function')) {
       const name = this.expect('IDENTIFIER').lexeme;
@@ -78,7 +73,7 @@ parse() {
         parameters.push({ type, name: parameter });
       } while (this.match(','));
       this.expect(')');
-      const returnType = this.is('{') ? 'void' : this.type();
+      const returnType = this.is('{') ? 'void' : this.type(true);
       return new N.FunctionDeclaration(name, parameters, returnType, this.block(), loc);
     }
     if (this.match('task')) {
@@ -95,27 +90,18 @@ parse() {
       this.expect('}');
       return new N.ResourceDeclaration(type, name, properties, loc);
     }
-
     if (TYPES.has(this.peek().type)) return this.variable(true);
     this.fail('Se esperaba una declaración global o main.');
- 
-}
-
-
+  }
+  //Creacion de la funcion variable
   variable(semicolon) {
-
     const loc = this.peek(), type = this.type(), name = this.expect('IDENTIFIER').lexeme;
     const initializer = this.match('=') ? this.expression() : null;
     if (semicolon) this.expect(';');
-    
     return new N.VariableDeclaration(type, name, initializer, loc);
- 
-}
+  }
 
-
-
-
-block() {
+  block() {
     const loc = this.expect('{'), instructions = [];
     while (!this.is('}') && !this.is('EOF')) {
       const start = this.index;
@@ -192,9 +178,11 @@ block() {
     }
     return node;
   }
-
   primary() {
-    const token = this.advance();
+    const token = this.peek();
+    if (!['INT', 'FLOAT', 'STRING', 'true', 'false', 'IDENTIFIER', '(', '['].includes(token.type))
+      this.fail('Se esperaba una expresión.', token);
+    this.advance();
     if (['INT', 'FLOAT', 'STRING'].includes(token.type)) return new N.LiteralExpression(token.value, token.type.toLowerCase(), token);
     if (token.type === 'true' || token.type === 'false') return new N.LiteralExpression(token.type === 'true', 'bool', token);
     if (token.type === 'IDENTIFIER') return new N.IdentifierExpression(token.lexeme, token);
@@ -204,6 +192,6 @@ block() {
       if (!this.is(']')) do { items.push(this.expression()); } while (this.match(','));
       this.expect(']'); return new N.ArrayExpression(items, token);
     }
-    this.fail('Se esperaba una expresiooon', token);
+    this.fail('Se esperaba una expresión.', token);
   }
 }
