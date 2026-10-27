@@ -1,7 +1,7 @@
 import { Lexer } from '../lexer/Lexer.js';
 import { Parser } from '../parser/Parser.js';
 import { Environment, RuntimeError, printable } from '../environment/Environment.js';
-import { Infrastructure } from '../infraestructure/Infraestructure.js';
+import { Infrastructure } from '../infrastructure/Infraestructure.js';
 
 export function emptyResult() {
   return {

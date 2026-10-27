@@ -1,0 +1,244 @@
+Terminales = {
+    res_INT,
+    res_FLOAT,
+    res_STRING,
+    res_BOOL,
+    res_VOID,
+    res_SERVER,
+    res_SERVICE,
+    res_DATABASE,
+    res_IF,
+    res_ELSE,
+    res_WHILE,
+    res_FOR,
+    res_BREAK,
+    res_CONTINUE,
+    res_RETURN,
+    res_FUNCTION,
+    res_TASK,
+    res_MAIN,
+    res_RUN,
+    res_TRUE,
+    res_FALSE,
+    ope_MAS,
+    ope_MENOS,
+    ope_MULT,
+    ope_DIV,
+    ope_MOD,
+    ope_IGUALACION,
+    ope_NOIGUAL,
+    ope_MENORIGUAL,
+    ope_MAYORIGUAL,
+    ope_MENORQUE,
+    ope_MAYORQUE,
+    ope_AND,
+    ope_OR,
+    ope_NOT,
+    simb_IGUAL,
+    simb_PUNTOD,
+    simb_PUNTOC,
+    simb_PARABRE,
+    simb_PARCIERRA,
+    simb_LLAVEA,
+    simb_LLAVEC,
+    simb_CORCHETEA,
+    simb_CORCHETEC,
+    simb_COMA,
+    tk_ID,
+    tk_INT,
+    tk_FLOAT,
+    tk_STRING,
+    tk_BOOL,
+    tk_EOF
+}
+
+No terminales = {
+    <START>,
+    <DECLARACIONES>,
+    <DECLARACION>,
+    <RECURSO>,
+    <TIPO_RECURSO>,
+    <PROPIEDADES>,
+    <PROPIEDAD>,
+    <FUNCION>,
+    <PARAMETROS>,
+    <PARAMETRO>,
+    <TAREA>,
+    <MAIN>,
+    <BLOQUE>,
+    <INSTRUCCIONES>,
+    <INSTRUCCION>,
+    <ASIGNACION>,
+    <IF>,
+    <ELSE>,
+    <WHILE>,
+    <FOR>,
+    <INICIALIZADOR>,
+    <ACTUALIZACION>,
+    <RETURN>,
+    <CONTROL>,
+    <LLAMADA>,
+    <ARGUMENTOS>,
+    <TIPO>,
+    <EXP>,
+    <EXP_OR>,
+    <EXP_AND>,
+    <EXP_IGUALDAD>,
+    <EXP_COMPARACION>,
+    <EXP_TERMINO>,
+    <EXP_FACTOR>,
+    <EXP_UNARIA>,
+    <EXP_PRIMARIA>,
+    <ACCESO_PROPIEDAD>,
+    <ACCESO_ARREGLO>,
+    <ARREGLO_LITERAL>
+}
+
+Inicio = <START>
+
+<START> ::= <DECLARACIONES> <MAIN>
+          | <MAIN>
+
+<DECLARACIONES> ::= <DECLARACIONES> <DECLARACION>
+                  | <DECLARACION>
+
+<DECLARACION> ::= <RECURSO>
+                | <FUNCION>
+                | <TAREA>
+                | <TIPO> tk_ID simb_IGUAL <EXP> simb_PUNTOC
+                | <TIPO> tk_ID simb_PUNTOC
+
+<RECURSO> ::= <TIPO_RECURSO> tk_ID simb_LLAVEA <PROPIEDADES> simb_LLAVEC
+            | <TIPO_RECURSO> tk_ID simb_LLAVEA simb_LLAVEC
+
+<TIPO_RECURSO> ::= res_SERVER
+                 | res_SERVICE
+                 | res_DATABASE
+
+<PROPIEDADES> ::= <PROPIEDADES> <PROPIEDAD>
+                | <PROPIEDAD>
+
+<PROPIEDAD> ::= tk_ID simb_IGUAL <EXP> simb_PUNTOC
+
+<FUNCION> ::= res_FUNCTION tk_ID simb_PARABRE <PARAMETROS> simb_PARCIERRA <TIPO> <BLOQUE>
+            | res_FUNCTION tk_ID simb_PARABRE simb_PARCIERRA <TIPO> <BLOQUE>
+
+<PARAMETROS> ::= <PARAMETROS> simb_COMA <PARAMETRO>
+               | <PARAMETRO>
+
+<PARAMETRO> ::= <TIPO> tk_ID
+
+<TAREA> ::= res_TASK tk_ID <BLOQUE>
+
+<MAIN> ::= res_MAIN <BLOQUE>
+
+<BLOQUE> ::= simb_LLAVEA <INSTRUCCIONES> simb_LLAVEC
+           | simb_LLAVEA simb_LLAVEC
+
+<INSTRUCCIONES> ::= <INSTRUCCIONES> <INSTRUCCION>
+                  | <INSTRUCCION>
+
+<INSTRUCCION> ::= <IF>
+                | <WHILE>
+                | <FOR>
+                | <RETURN>
+                | <CONTROL>
+                | res_RUN tk_ID simb_PUNTOC
+                | <BLOQUE>
+                | <TIPO> tk_ID simb_IGUAL <EXP> simb_PUNTOC
+                | <TIPO> tk_ID simb_PUNTOC
+                | <ASIGNACION> simb_PUNTOC
+                | <LLAMADA> simb_PUNTOC
+
+<IF> ::= res_IF simb_PARABRE <EXP> simb_PARCIERRA <BLOQUE>
+       | res_IF simb_PARABRE <EXP> simb_PARCIERRA <BLOQUE> res_ELSE <BLOQUE>
+       | res_IF simb_PARABRE <EXP> simb_PARCIERRA <BLOQUE> res_ELSE <IF>
+
+<WHILE> ::= res_WHILE simb_PARABRE <EXP> simb_PARCIERRA <BLOQUE>
+
+<FOR> ::= res_FOR simb_PARABRE <INICIALIZADOR> simb_PUNTOC <EXP> simb_PUNTOC <ACTUALIZACION> simb_PARCIERRA <BLOQUE>
+
+<INICIALIZADOR> ::= <TIPO> tk_ID simb_IGUAL <EXP>
+                  | <ASIGNACION>
+                  | epsilon
+
+<ACTUALIZACION> ::= <ASIGNACION>
+                  | tk_ID simb_IGUAL <EXP>
+                  | epsilon
+
+<RETURN> ::= res_RETURN <EXP> simb_PUNTOC
+           | res_RETURN simb_PUNTOC
+
+<CONTROL> ::= res_BREAK simb_PUNTOC
+            | res_CONTINUE simb_PUNTOC
+
+<ASIGNACION> ::= tk_ID simb_IGUAL <EXP>
+               | <ACCESO_PROPIEDAD> simb_IGUAL <EXP>
+               | <ACCESO_ARREGLO> simb_IGUAL <EXP>
+
+<LLAMADA> ::= tk_ID simb_PARABRE <ARGUMENTOS> simb_PARCIERRA
+            | tk_ID simb_PARABRE simb_PARCIERRA
+
+<ARGUMENTOS> ::= <ARGUMENTOS> simb_COMA <EXP>
+               | <EXP>
+
+<TIPO> ::= res_INT
+         | res_FLOAT
+         | res_STRING
+         | res_BOOL
+         | res_VOID
+         | res_SERVER
+         | res_SERVICE
+         | res_DATABASE
+         | <TIPO> simb_CORCHETEA simb_CORCHETEC
+
+<EXP> ::= <EXP_OR>
+
+<EXP_OR> ::= <EXP_OR> ope_OR <EXP_AND>
+           | <EXP_AND>
+
+<EXP_AND> ::= <EXP_AND> ope_AND <EXP_IGUALDAD>
+            | <EXP_IGUALDAD>
+
+<EXP_IGUALDAD> ::= <EXP_IGUALDAD> ope_IGUALACION <EXP_COMPARACION>
+                 | <EXP_IGUALDAD> ope_NOIGUAL <EXP_COMPARACION>
+                 | <EXP_COMPARACION>
+
+<EXP_COMPARACION> ::= <EXP_COMPARACION> ope_MENORQUE <EXP_TERMINO>
+                    | <EXP_COMPARACION> ope_MENORIGUAL <EXP_TERMINO>
+                    | <EXP_COMPARACION> ope_MAYORQUE <EXP_TERMINO>
+                    | <EXP_COMPARACION> ope_MAYORIGUAL <EXP_TERMINO>
+                    | <EXP_TERMINO>
+
+<EXP_TERMINO> ::= <EXP_TERMINO> ope_MAS <EXP_FACTOR>
+                | <EXP_TERMINO> ope_MENOS <EXP_FACTOR>
+                | <EXP_FACTOR>
+
+<EXP_FACTOR> ::= <EXP_FACTOR> ope_MULT <EXP_UNARIA>
+               | <EXP_FACTOR> ope_DIV <EXP_UNARIA>
+               | <EXP_FACTOR> ope_MOD <EXP_UNARIA>
+               | <EXP_UNARIA>
+
+<EXP_UNARIA> ::= ope_NOT <EXP_UNARIA>
+               | ope_MENOS <EXP_UNARIA>
+               | <EXP_PRIMARIA>
+
+<EXP_PRIMARIA> ::= tk_INT
+                 | tk_FLOAT
+                 | tk_STRING
+                 | res_TRUE
+                 | res_FALSE
+                 | tk_ID
+                 | simb_PARABRE <EXP> simb_PARCIERRA
+                 | <LLAMADA>
+                 | <ACCESO_PROPIEDAD>
+                 | <ACCESO_ARREGLO>
+                 | <ARREGLO_LITERAL>
+
+<ACCESO_PROPIEDAD> ::= tk_ID simb_PUNTOD tk_ID
+
+<ACCESO_ARREGLO> ::= tk_ID simb_CORCHETEA <EXP> simb_CORCHETEC
+                   | <ACCESO_ARREGLO> simb_CORCHETEA <EXP> simb_CORCHETEC
+
+<ARREGLO_LITERAL> ::= simb_CORCHETEA <ARGUMENTOS> simb_CORCHETEC
+                    | simb_CORCHETEA simb_CORCHETEC

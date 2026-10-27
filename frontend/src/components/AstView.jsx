@@ -1,71 +1,168 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { downloadFile } from '../services/api.js';
-const PAGE_SIZE = 12;
-function indexTree(root) {
-  const entries = [], stack = [{ node: root, path: [] }];
-  while (stack.length) {
-    const entry = stack.pop(); entries.push(entry);
-    const children = entry.node.children ?? [];
-    for (let i = children.length - 1; i >= 0; i--) stack.push({ node: children[i], path: [...entry.path, i] });
-  }
-  return entries;
-}
-function caption(node) {
-  return String(node?.label ?? 'Nodo');
-}
+import React, { useRef } from 'react';
+
 export default function AstView({ tree }) {
-  const [path, setPath] = useState([]), [page, setPage] = useState(0);
-  const [query, setQuery] = useState(''), [zoom, setZoom] = useState(1);
-  const svg = useRef(null);
-  const entries = useMemo(() => tree ? indexTree(tree) : [], [tree]);
-  if (!tree) return <p className="empty">Analiza un programa para generar su AST.</p>;
-  let selected = tree;
-  for (const index of path) selected = selected.children?.[index] ?? tree;
-  const children = selected.children ?? [];
-  const pages = Math.max(1, Math.ceil(children.length / PAGE_SIZE));
-  const current = Math.min(page, pages - 1), offset = current * PAGE_SIZE;
-  const visible = children.slice(offset, offset + PAGE_SIZE);
-  const height = 190 + Math.ceil(visible.length / 3) * 160;
-  const navigate = next => { setPath(next); setPage(0); };
-  const matches = query.trim() ? entries.filter(entry => caption(entry.node).toLowerCase().includes(query.toLowerCase())).slice(0, 40) : [];
-  function box(node, x, y, action, key) {
-    return <g key={key} transform={`translate(${x},${y})`} role={action ? 'button' : undefined}
-      tabIndex={action ? 0 : undefined} aria-label={action ? `Explorar ${caption(node)}` : undefined}
-      onClick={action} onKeyDown={event => { if (action && ['Enter', ' '].includes(event.key)) { event.preventDefault(); action(); } }}
-      style={{ cursor: action ? 'pointer' : 'default' }}>
-      <title>{caption(node)}{node.line ? ` · Línea ${node.line}, columna ${node.column}` : ''}</title>
-      <rect width="260" height="112" rx="10" fill="#fff" stroke="#167b89" strokeWidth="2" />
-      {caption(node).split('\n').slice(0, 4).map((line, i) => <text key={i} x="12" y={23 + i * 18}
-        fill="#102c40" fontFamily="monospace" fontSize="12">{line.length > 32 ? line.slice(0, 31) + '…' : line}</text>)}
-      <text x="12" y="100" fill="#167b89" fontFamily="sans-serif" fontSize="10">
-        {(node.children?.length ?? 0)} hijos{action ? ' · clic para explorar' : ''}
-      </text>
-    </g>;
+  const containerRef = useRef(null);
+
+  if (!tree) {
+    return <div style={{ padding: '20px', textAlign: 'center', color: '#000' }}>El AST aparecerá aquí al analizar el código.</div>;
   }
-  return <>
-    <div className="ast-controls">
-      <button disabled={!path.length} onClick={() => navigate([])}>Raíz</button>
-      <button disabled={!path.length} onClick={() => navigate(path.slice(0, -1))}>Subir</button>
-      <label>Zoom <input type="range" min="0.4" max="1.5" step="0.1" value={zoom} onChange={event => setZoom(Number(event.target.value))} /></label>
-      <button onClick={() => downloadFile('ast-vista.svg', new XMLSerializer().serializeToString(svg.current), 'image/svg+xml')}>Descargar vista SVG</button>
-      <button onClick={() => downloadFile('ast-completo.json', JSON.stringify(tree, null, 2), 'application/json')}>AST completo JSON</button>
+
+  const downloadSVG = () => {
+    if (!containerRef.current) return;
+    const svgElement = containerRef.current.querySelector('svg');
+    if (!svgElement) return;
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'AST_AutoInfra.svg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // --- CÁLCULO DE POSICIONES DEL ÁRBOL ---
+  const nodeWidth = 160;
+  const nodeSpacingX = 40; // Espacio horizontal entre nodos
+  const nodeSpacingY = 80; // Espacio vertical entre niveles
+  
+  // Variables globales para el dibujo
+  let currentX = 0;
+  const nodesToDraw = [];
+  const linesToDraw = [];
+
+  // Función recursiva para calcular las posiciones X, Y
+  const calculateLayout = (node, depth = 0) => {
+    if (!node) return { x: 0, y: 0 };
+
+    const y = depth * nodeSpacingY + 50;
+    let x = 0;
+
+    if (node.children && node.children.length > 0) {
+      // Si tiene hijos, calculamos la posición de todos ellos primero
+      const childPositions = node.children.map(child => calculateLayout(child, depth + 1));
+      
+      // El nodo padre se centra respecto a su primer y último hijo
+      const firstChildX = childPositions[0].x;
+      const lastChildX = childPositions[childPositions.length - 1].x;
+      x = (firstChildX + lastChildX) / 2;
+
+      // Creamos las líneas que conectan al padre con los hijos
+      childPositions.forEach((childPos, index) => {
+        linesToDraw.push({
+          x1: x + nodeWidth / 2,
+          y1: y + 60, // Altura aproximada del nodo
+          x2: childPos.x + nodeWidth / 2,
+          y2: childPos.y,
+          key: `line-${depth}-${index}-${x}-${childPos.x}`
+        });
+      });
+
+    } else {
+      // Si es una hoja, le asignamos el espacio actual y avanzamos
+      x = currentX;
+      currentX += nodeWidth + nodeSpacingX;
+    }
+
+    // Guardamos el nodo para dibujarlo después
+    nodesToDraw.push({ node, x, y, depth });
+
+    return { x, y };
+  };
+
+  // Ejecutamos el cálculo empezando por la raíz
+  calculateLayout(tree, 0);
+
+  // Calculamos las dimensiones totales del SVG
+  const maxWidth = currentX + 100;
+  const maxHeight = Math.max(...nodesToDraw.map(n => n.y)) + 150;
+
+  const renderNode = (item, index) => {
+    const { node, x, y } = item;
+    const labelParts = node.label ? node.label.split('\n') : ['Nodo'];
+    const title = labelParts[0];
+    const details = labelParts.slice(1);
+    
+    // Calcular altura del cuadro según las líneas de texto
+    const textLines = [title, ...details, `L:${node.line} C:${node.column}`];
+    const boxHeight = 20 + (textLines.length * 14);
+
+    return (
+      <g key={index}>
+        <rect 
+          x={x} 
+          y={y} 
+          width={nodeWidth} 
+          height={boxHeight} 
+          fill="#fff" 
+          stroke="#000" 
+          strokeWidth="1.5" 
+          rx="4"
+        />
+        {textLines.map((text, i) => (
+          <text 
+            key={i} 
+            x={x + nodeWidth / 2} 
+            y={y + 18 + (i * 14)} 
+            textAnchor="middle" 
+            fill="#000" 
+            fontSize={i === 0 ? "12" : "11"}
+            fontWeight={i === 0 ? "bold" : "normal"}
+            fontFamily="sans-serif"
+          >
+            {text}
+          </text>
+        ))}
+      </g>
+    );
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#ffffff', overflow: 'auto' }}>
+      
+      <button 
+        onClick={downloadSVG}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '20px',
+          padding: '8px 16px',
+          background: '#000',
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          zIndex: 10,
+          fontWeight: 'bold',
+          borderRadius: '4px'
+        }}
+      >
+        Descargar AST
+      </button>
+
+      <div ref={containerRef} style={{ padding: '20px', display: 'inline-block', minWidth: '100%' }}>
+        <svg 
+          width={maxWidth} 
+          height={maxHeight}
+        >
+          {/* Dibujamos primero las líneas para que queden detrás de los cuadros */}
+          {linesToDraw.map(line => (
+            <path 
+              key={line.key}
+              d={`M ${line.x1} ${line.y1} L ${line.x1} ${line.y1 + 20} L ${line.x2} ${line.y1 + 20} L ${line.x2} ${line.y2}`}
+              fill="none" 
+              stroke="#000" 
+              strokeWidth="1" 
+            />
+          ))}
+          
+          {}
+          {nodesToDraw.map((item, i) => renderNode(item, i))}
+        </svg>
+      </div>
     </div>
-    <p className="ast-info">{entries.length} nodos totales · Nivel {path.length}. Explora los hijos sin cargar un gráfico gigante.</p>
-    <label className="ast-search">Buscar nodo <input placeholder="Ej.: FunctionDeclaration o factorial" value={query} onChange={event => setQuery(event.target.value)} /></label>
-    {query.trim() && <div className="ast-matches">{matches.length ? matches.map((entry, i) =>
-      <button key={i} onClick={() => { navigate(entry.path); setQuery(''); }}>{caption(entry.node).replaceAll('\n', ' · ')}</button>) : <p>Sin coincidencias.</p>}</div>}
-    <pre className="node-details">{caption(selected)}{selected.line ? `\nLínea ${selected.line}, columna ${selected.column}` : ''}</pre>
-    <div className="table-controls"><span>{children.length} hijos · Página {current + 1} de {pages}</span>
-      <button disabled={current === 0} onClick={() => setPage(current - 1)}>Hijos anteriores</button>
-      <button disabled={current + 1 >= pages} onClick={() => setPage(current + 1)}>Más hijos</button></div>
-    <div className="ast-scroll"><svg ref={svg} xmlns="http://www.w3.org/2000/svg" role="img"
-      aria-label="Árbol de sintaxis abstracta" width={900 * zoom} height={height * zoom} viewBox={`0 0 900 ${height}`}>
-      <rect width="900" height={height} fill="#f4f8fc" />
-      {visible.map((child, i) => <path key={i} fill="none" stroke="#7c98ad" strokeWidth="2"
-        d={`M 450 132 L 450 ${150 + Math.floor(i / 3) * 160} L ${150 + (i % 3) * 300} ${150 + Math.floor(i / 3) * 160} L ${150 + (i % 3) * 300} ${180 + Math.floor(i / 3) * 160}`} />)}
-      {box(selected, 320, 20, null, 'root')}
-      {visible.map((child, i) => box(child, 20 + (i % 3) * 300, 180 + Math.floor(i / 3) * 160,
-        () => navigate([...path, offset + i]), i))}
-    </svg></div>
-  </>;
+  );
 }

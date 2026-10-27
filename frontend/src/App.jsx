@@ -1,73 +1,74 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { analyzeCode, downloadFile } from './services/api.js';
 import DataTable from './components/DataTable.jsx';
 import AstView from './components/AstView.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
-const EXAMPLE = `server backend {
-    cpu = 4;
-    memory = 8;
-    disk = 100;
-    os = "ubuntu";
-}
-database postgres {
-    engine = "postgresql";
-    version = "16";
-    port = 5432;
-}
-service api {
-    port = 8080;
-    replicas = 2;
-    dependsOn = [postgres];
-}
-string[] packages = ["docker", "git"];
-function ready(server s, database db) bool {
-    return s.status == "running" && db.status == "running" && s.memory >= 8;
-}
-task production {
-    start(postgres);
-    start(backend);
-    for (int i = 0; i < length(packages); i = i + 1) {
-        install(backend, packages[i]);
-    }
-    if (ready(backend, postgres)) {
-        deploy(backend, api);
-        scale(api, 3);
-    }
-    print("API disponible en puerto " + api.port);
-    print("Servidor: " + api.host.os);
-    print("Réplicas: " + api.replicas);
-}
-main {
-    run production;
-}
-`;
-const TABS = ['Consola', 'Errores', 'Tokens', 'Símbolos', 'AST', 'Infraestructura', 'Bitácora'];
+const TABS_TOP = ['Errores', 'Tokens', 'Símbolos', 'AST', 'Infraestructura'];
+const TABS_BOTTOM = ['Consola', 'Bitacora'];
 const FILE_TYPES = [{ description: 'Código AutoInfra', accept: { 'text/plain': ['.infra'] } }];
 
 export default function App() {
-  const [source, setSource] = useState(EXAMPLE), [filename, setFilename] = useState('produccion.infra');
-  const [dirty, setDirty] = useState(true), [busy, setBusy] = useState(false);
-  const [result, setResult] = useState(null), [tab, setTab] = useState('Consola');
-  const [notice, setNotice] = useState('Ejemplo cargado. Guarda el archivo y presiona Ejecutar.');
+  const [source, setSource] = useState(''), [filename, setFilename] = useState('nuevo.infra');
+  const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  
+  const [tabTop, setTabTop] = useState('Errores');
+  const [tabBottom, setTabBottom] = useState('Consola');
+  
+  const [notice, setNotice] = useState('');
   const handle = useRef(null), fallbackInput = useRef(null);
 
-  function edit(value) { setSource(value); setDirty(true); setResult(null); setNotice('Código modificado. Ejecuta para actualizar reportes.'); }
-  function mayReplace() { return !dirty || window.confirm('Hay cambios sin guardar. ¿Deseas reemplazar el contenido?'); }
+  // Lógica para arrastrar la barra divisoria
+  const [isDragging, setIsDragging] = useState(false);
+  const [bottomHeight, setBottomHeight] = useState(250); 
+  const topRowRef = useRef(null);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+      if (topRowRef.current) {
+        const topRowRect = topRowRef.current.getBoundingClientRect();
+        const newHeight = e.clientY - topRowRect.bottom + 8; 
+        if (newHeight > 80) { 
+          setBottomHeight(newHeight);
+        }
+      }
+    };
+    const handleMouseUp = () => { setIsDragging(false); };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  function edit(value) { 
+    setSource(value); 
+    setDirty(true); 
+    setResult(null); 
+    setNotice('Listo'); 
+  }
+  
   async function loadFile(file, fileHandle = null) {
-    if (!file.name.toLowerCase().endsWith('.infra')) throw new Error('Selecciona un archivo con extensión .infra.');
+    if (!file.name.toLowerCase().endsWith('.infra')) throw new Error('Selecciona un .infra.');
     const text = await file.text();
     setSource(text); setFilename(file.name); handle.current = fileHandle; setDirty(false);
     setResult(null); setNotice(`Archivo abierto: ${file.name}`);
   }
+  
   async function openFile() {
-    if (!mayReplace()) return;
     if (!window.showOpenFilePicker) { fallbackInput.current.click(); return; }
     try {
       const [selected] = await window.showOpenFilePicker({ types: FILE_TYPES, multiple: false });
       await loadFile(await selected.getFile(), selected);
     } catch (error) { if (error.name !== 'AbortError') setNotice(error.message); }
   }
+  
   async function saveFile(saveAs = false) {
     try {
       if (window.showSaveFilePicker) {
@@ -80,82 +81,197 @@ export default function App() {
         const requested = saveAs ? window.prompt('Nombre del archivo:', filename) : filename;
         if (requested === null) return;
         const name = requested.trim();
-        if (!name) throw new Error('Escribe un nombre para el archivo.');
+        if (!name) throw new Error('no puede estar vacio');
         const complete = name.toLowerCase().endsWith('.infra') ? name : name + '.infra';
         downloadFile(complete, source); setFilename(complete); setDirty(false);
-        setNotice('Descarga iniciada. En este navegador Guardar descarga una copia; verifica tu carpeta de descargas.');
+        setNotice('Descarga iniciada.');
       }
     } catch (error) { if (error.name !== 'AbortError') setNotice(error.message); }
   }
+  
   function newFile() {
-    if (!mayReplace()) return;
-    setSource('main {\n    print("Hola AutoInfra");\n}\n'); setFilename('nuevo.infra');
-    handle.current = null; setDirty(true); setResult(null); setNotice('Archivo nuevo sin guardar.');
+    setSource(''); 
+    setFilename('nuevo.infra');
+    handle.current = null; 
+    setDirty(false); 
+    setResult(null); 
+    setNotice('');
   }
+  
   async function run(execute) {
-    setBusy(true); setResult(null); setNotice(execute ? 'Ejecutando…' : 'Analizando…');
+    if (busy) return;
+    if (!source.trim()) { setNotice('no hay nada'); return; }
+    
+    setBusy(true);
+    setNotice(execute ? 'Ejecutand' : 'Analizand');
     try {
-      const data = await analyzeCode(source, execute); setResult(data);
-      setTab(data.errors.length ? 'Errores' : 'Consola');
-      setNotice(data.success ? execute ? 'Ejecución finalizada correctamente.' : 'Análisis finalizado correctamente; no se ejecutaron instrucciones.' : 'Proceso finalizado con errores.');
-    } catch (error) { setResult(null); setNotice(`No se completó la solicitud: ${error.message}. Comprueba el backend.`); }
-    finally { setBusy(false); }
+      const data = await analyzeCode(source, execute);
+      setResult(data);
+      
+      if (data.errors.length > 0) {
+        setTabTop('Errores');
+      } else {
+        setTabTop('Infraestructura');
+        setTabBottom(execute ? 'Consola' : 'Errores');
+      }
+      
+      setNotice(data.success ? (execute ? 'Ejecución exitosa.' : 'Análisis exitoso.') : 'Proceso finalizado con errores.');
+    } catch (error) {
+      setResult(null);
+      setNotice(`No se completó: ${error?.message || 'Error desconocido'}`);
+    } finally {
+      setBusy(false);
+    }
   }
+
   const infra = result?.infrastructure;
-  return <main className="app-shell">
-    <header className="masthead"><div><span className="eyebrow">OLC1 · PROYECTO 2</span>
-      <h1>AutoInfra<span className="brand-dot">.</span></h1><p>Describe. Ejecuta. Observa tu infraestructura.</p></div>
-      <div className="local-badge">ENTORNO SIMULADO <span>LOCAL</span></div></header>
-    <section className="toolbar" aria-label="Acciones de archivo">
-      <button disabled={busy} onClick={newFile}>Nuevo</button><button disabled={busy} onClick={openFile}>Abrir</button>
-      <button disabled={busy} onClick={() => saveFile(false)}>Guardar</button><button disabled={busy} onClick={() => saveFile(true)}>Guardar como</button>
-      <span className="toolbar-spacer" /><button disabled={busy} onClick={() => run(false)}>Analizar</button>
-      <button className="primary" disabled={busy} onClick={() => run(true)}>{busy ? 'Procesando…' : '▶ Ejecutar'}</button>
-      <button disabled={busy} onClick={() => { setResult(null); setNotice('Resultados y reportes limpiados.'); }}>Limpiar resultados</button>
-    </section>
-    <input hidden ref={fallbackInput} type="file" accept=".infra" onChange={async event => {
-      const file = event.target.files?.[0]; event.target.value = '';
-      if (file) try { await loadFile(file); } catch (error) { setNotice(error.message); }
-    }} />
-    <div className={`status ${result ? result.success ? 'success' : 'failure' : ''}`} role="status">
-      <span>{notice}</span>{result && <span>{result.durationMs} ms · {result.tokens.length} tokens · {result.errors.length} errores</span>}
-    </div>
-    <div className="workspace">
-      <section className="panel editor-panel"><div className="panel-title"><h2>{filename}{dirty ? ' •' : ''}</h2><span>AutoInfra</span></div>
-        <label className="sr-only" htmlFor="source">Código fuente AutoInfra</label>
-        <textarea id="source" spellCheck="false" value={source} disabled={busy} onChange={event => edit(event.target.value)}
-          onKeyDown={event => {
-            if (event.key === 'Tab') {
-              event.preventDefault(); const element = event.currentTarget, start = element.selectionStart, end = element.selectionEnd;
-              edit(source.slice(0, start) + '    ' + source.slice(end));
-              requestAnimationFrame(() => { element.selectionStart = element.selectionEnd = start + 4; });
-            }
-          }} />
-        <div className="editor-footer">{source.split('\n').length} líneas · UTF-8 · {dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</div>
-      </section>
-      <section className="panel results-panel"><div className="panel-title"><h2>Resultados</h2>
-        <button disabled={!result || busy} onClick={() => downloadFile('reporte-autoinfra.json', JSON.stringify(result, null, 2), 'application/json')}>Exportar JSON</button></div>
-        <div className="tabs" role="tablist">{TABS.map(name => <button role="tab" aria-selected={tab === name}
-          key={name} onClick={() => setTab(name)} className={tab === name ? 'active' : ''}>{name}</button>)}</div>
-        <div className="result-body" role="tabpanel">
-          <ErrorBoundary resetKey={result}>
-          {tab === 'Consola' && <pre className="console">{result?.console.join('\n') || 'La salida de print aparecerá aquí.'}</pre>}
-          {tab === 'Bitácora' && <pre className="console">{result?.log.join('\n') || 'Las acciones de infraestructura aparecerán aquí.'}</pre>}
-          {tab === 'Errores' && <DataTable rows={result?.errors} columns={[
-            ['type', 'Tipo'], ['code', 'Código'], ['description', 'Descripción'], ['line', 'Línea'], ['column', 'Columna']]} />}
-          {tab === 'Tokens' && <DataTable rows={result?.tokens} columns={[
-            ['lexeme', 'Lexema'], ['type', 'Token'], ['line', 'Línea'], ['column', 'Columna']]} />}
-          {tab === 'Símbolos' && <DataTable rows={result?.symbols} columns={[
-            ['identifier', 'Identificador'], ['category', 'Categoría'], ['type', 'Tipo'], ['scope', 'Ámbito'], ['value', 'Valor']]} />}
-          {tab === 'AST' && <AstView key={source} tree={result?.ast} />}
-          {tab === 'Infraestructura' && <div className="infra-groups">
-            {[['Servidores', infra?.servers], ['Servicios', infra?.services], ['Bases de datos', infra?.databases], ['Conexiones', infra?.connections]]
-              .map(([label, rows]) => <section key={label}><h3>{label}</h3><DataTable rows={rows} /></section>)}
-          </div>}
-          </ErrorBoundary>
+
+  return (
+    <div className="ide-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <header className="ide-header">
+        <div className="ide-logo">
+          <span className="logo-icon"></span>  PROYECTO 2 AUTOINFRS <span className="logo-badge"></span>
         </div>
-      </section>
+        <div className="ide-toolbar">
+          <button disabled={busy} onClick={newFile}>Nuevo archivo</button>
+          <button disabled={busy} onClick={openFile}>Abrir archivo</button>
+          <button disabled={busy} onClick={() => saveFile(true)}>Guardar archivo</button>
+        </div>
+        <div className="ide-actions">
+          <button className="btn-secondary" disabled={busy} onClick={() => run(false)}>Analizar</button>
+          <button className="btn-primary" disabled={busy} onClick={() => run(true)}>
+            {busy ? ' Procesando...' : 'Ejecutar'}
+          </button>
+        </div>
+      </header>
+
+      <div className="ide-workspace" style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px', overflow: 'hidden', padding: '12px' }}>
+        
+        {}
+        <div 
+          ref={topRowRef}
+          className="ide-top-row" 
+          style={{ display: 'flex', flex: 1, gap: '12px', overflow: 'hidden' }}
+        >
+          <div className="ide-panel editor-panel">
+            <div className="panel-header">
+              <div className="file-tab active">
+                {filename} {dirty && <span className="dot-dirty"></span>}
+              </div>
+            </div>
+            <div className="editor-container">
+              <div className="line-numbers">
+                {source.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+              </div>
+              <textarea 
+                id="source" spellCheck="false" value={source} disabled={busy} 
+                onChange={event => edit(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Tab') {
+                    event.preventDefault(); 
+                    const element = event.currentTarget, start = element.selectionStart, end = element.selectionEnd;
+                    edit(source.slice(0, start) + '    ' + source.slice(end));
+                    requestAnimationFrame(() => { element.selectionStart = element.selectionEnd = start + 4; });
+                  }
+                }} 
+              />
+            </div>
+            <div className="status-bar"></div>
+          </div>
+
+          <div className="ide-panel results-panel">
+            <div className="panel-header tabs-header">
+              {TABS_TOP.map(name => (
+                <button key={name} className={`tab-btn ${tabTop === name ? 'active' : ''}`} onClick={() => setTabTop(name)}>
+                  {name}
+                </button>
+              ))}
+            </div>
+            
+            <div className="result-content">
+              <ErrorBoundary resetKey={result}>
+                {tabTop === 'Errores' && <DataTable rows={result?.errors} columns={[['type', 'Tipo'], ['code', 'Código'], ['description', 'Descripción'], ['line', 'Línea'], ['column', 'Columna']]} />}
+                {tabTop === 'Tokens' && <DataTable rows={result?.tokens} columns={[['lexeme', 'Lexema'], ['type', 'Token'], ['line', 'Línea'], ['column', 'Columna']]} />}
+                {tabTop === 'Símbolos' && <DataTable rows={result?.symbols} columns={[['identifier', 'Identificador'], ['category', 'Categoría'], ['type', 'Tipo'], ['scope', 'Ámbito'], ['value', 'Valor']]} />}
+                {tabTop === 'AST' && <AstView key={source} tree={result?.ast} />}
+                {tabTop === 'Infraestructura' && (
+                  <div className="infra-grid">
+                    {[['Servidores', infra?.servers], ['Servicios', infra?.services], ['Bases de datos', infra?.databases], ['Conexiones', infra?.connections]].map(([label, rows]) => (
+                      <div key={label} className="infra-card">
+                        <h3>{label}</h3>
+                        <DataTable rows={rows} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ErrorBoundary>
+            </div>
+          </div>
+        </div>
+
+        {}
+        <div 
+          onMouseDown={(e) => { e.preventDefault(); setIsDragging(true); }}
+          style={{ 
+            height: '10px', 
+            cursor: 'row-resize', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            flexShrink: 0,
+            margin: '4px 0'
+          }}
+        >
+          <div style={{ 
+            width: '60px', 
+            height: '6px', 
+            background: isDragging ? '#2563eb' : '#cbd5e1', 
+            borderRadius: '3px',
+            transition: 'background 0.2s'
+          }}></div>
+        </div>
+
+        {}
+        <div 
+          className="ide-bottom-row" 
+          style={{ 
+            height: `${bottomHeight}px`, 
+            display: 'flex', 
+            flexShrink: 0, 
+            overflow: 'hidden'
+          }}
+        >
+          <div className="ide-panel bottom-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="panel-header tabs-header" style={{ borderBottom: '1px solid #e5e7eb', display: 'flex' }}>
+              {TABS_BOTTOM.map(name => (
+                <button key={name} className={`tab-btn ${tabBottom === name ? 'active' : ''}`} onClick={() => setTabBottom(name)}>
+                  {name}
+                </button>
+              ))}
+              <div style={{ flex: 1 }}></div>
+              <span className={`status-indicator ${result ? (result.success ? 'success' : 'error') : ''}`} style={{ paddingRight: '16px' }}>
+                {notice}
+              </span>
+            </div>
+            
+            <div className="result-content" style={{ padding: '10px', flex: 1, overflow: 'auto' }}>
+              <ErrorBoundary resetKey={result}>
+                {tabBottom === 'Consola' && (
+                  <div className="console-box">
+                    {result?.console.length ? result.console.map((line, i) => <div key={i} className="console-line">{line}</div>) : <span className="text-muted">La salida de print aparecerá aquí.</span>}
+                  </div>
+                )}
+                {tabBottom === 'Bitácora' && (
+                  <div className="console-box log-box">
+                    {result?.log.length ? result.log.map((line, i) => <div key={i} className="console-line log-line">{line}</div>) : <span className="text-muted">No hay acciones registradas.</span>}
+                  </div>
+                )}
+              </ErrorBoundary>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </div>
-    <footer>AutoInfra · Cada ejecución comienza con un entorno nuevo.</footer>
-  </main>;
+  );
 }

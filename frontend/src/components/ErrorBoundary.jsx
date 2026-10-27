@@ -10,8 +10,8 @@ export default class ErrorBoundary extends React.Component {
     if (this.state.error) return <div role="alert" className="report-error">
       <h3></h3>
       <p>{this.state.error.message}</p>
-      <p>Tu código sigue en el editor. Limpia los resultados o vuelve a analizar.</p>
-      <button onClick={() => this.setState({ error: null })}>Reintentar reporte</button>
+      <p>Empeza otra vez pibe</p>
+      <button onClick={() => this.setState({ error: null })}>otra vez</button>
     </div>;
     return this.props.children;
   }
